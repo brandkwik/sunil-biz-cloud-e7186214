@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
-export const Route = createFileRoute("/_app/invoices")({
+export const Route = createFileRoute("/_app/invoices/")({
   component: InvoicesPage,
 });
 
