@@ -43,7 +43,9 @@ export type InvoiceDoc = {
   notes?: string;
   status: DocStatus;
   paidAmount: number;
+  paymentMethod?: PaymentMethod;
 };
+
 
 export type Expense = {
   id: string;
