@@ -1,9 +1,15 @@
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, FileText, Users, Wallet, BarChart3, Plus, Bell, LogOut } from "lucide-react";
+import {
+  LayoutDashboard, FileText, Users, Wallet, BarChart3, Plus, Bell, LogOut, Menu,
+  Landmark, Coins, ScrollText, HandCoins, Building2, RefreshCw, ShoppingCart,
+  ShoppingBag, Star, Settings, Receipt, Printer, Percent, Package, Globe, ChevronRight,
+} from "lucide-react";
 import { useStore, actions } from "@/lib/store";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 const NAV = [
@@ -14,10 +20,55 @@ const NAV = [
   { to: "/reports", label: "Reports", icon: BarChart3 },
 ] as const;
 
+type MenuItem = { to: string; label: string; icon: any };
+type MenuGroup = { title: string; items: MenuItem[] };
+
+const MENU: MenuGroup[] = [
+  {
+    title: "Cash & Bank",
+    items: [
+      { to: "/more/cash-bank/bank-accounts", label: "Bank Accounts", icon: Landmark },
+      { to: "/more/cash-bank/cash-in-hand", label: "Cash in Hand", icon: Coins },
+      { to: "/more/cash-bank/cheques", label: "Cheques", icon: ScrollText },
+      { to: "/more/cash-bank/loan-accounts", label: "Loan Accounts", icon: HandCoins },
+    ],
+  },
+  {
+    title: "My Business",
+    items: [
+      { to: "/invoices", label: "Sale", icon: ShoppingBag },
+      { to: "/more/business/purchase", label: "Purchase", icon: ShoppingCart },
+      { to: "/expenses", label: "Expenses", icon: Wallet },
+      { to: "/reports", label: "Reports", icon: BarChart3 },
+      { to: "/more/business/loyalty-points", label: "Loyalty Points", icon: Star },
+    ],
+  },
+  {
+    title: "Utilities",
+    items: [
+      { to: "/more/utilities/companies", label: "Companies", icon: Building2 },
+      { to: "/more/utilities/updates", label: "Check for Updates", icon: RefreshCw },
+    ],
+  },
+  {
+    title: "Settings",
+    items: [
+      { to: "/more/settings/general", label: "General", icon: Settings },
+      { to: "/more/settings/transactions", label: "Transactions", icon: Receipt },
+      { to: "/more/settings/invoice-print", label: "Invoice Print", icon: Printer },
+      { to: "/more/settings/taxes-gst", label: "Taxes & GST", icon: Percent },
+      { to: "/parties", label: "Party", icon: Users },
+      { to: "/more/settings/item", label: "Item", icon: Package },
+      { to: "/more/settings/multicurrency", label: "Multi-currency", icon: Globe },
+    ],
+  },
+];
+
 export function AppShell({ children, title, action }: { children: ReactNode; title: string; action?: ReactNode }) {
   const user = useStore((s) => s.user);
   const router = useRouter();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const onLogout = () => {
     actions.logout();
@@ -25,13 +76,77 @@ export function AppShell({ children, title, action }: { children: ReactNode; tit
     router.navigate({ to: "/auth" });
   };
 
+  const MenuDrawer = (
+    <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+      <SheetTrigger asChild>
+        <button aria-label="Open menu" className="grid h-9 w-9 place-items-center rounded-full bg-white/15 backdrop-blur md:bg-muted md:text-foreground md:backdrop-blur-none">
+          <Menu className="h-4 w-4" />
+        </button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-80 overflow-y-auto p-0">
+        <SheetHeader className="brand-gradient p-5 text-white">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/20 font-display text-lg font-bold">
+              {(user?.business ?? "S")[0]}
+            </div>
+            <div className="min-w-0 text-left">
+              <SheetTitle className="truncate font-display text-base font-bold text-white">
+                {user?.business ?? "SunilDemo"}
+              </SheetTitle>
+              <p className="truncate text-xs text-white/80">{user?.email ?? "guest@sunildemo.app"}</p>
+            </div>
+          </div>
+        </SheetHeader>
+        <div className="p-3">
+          {MENU.map((group) => (
+            <div key={group.title} className="mb-4">
+              <p className="px-3 pb-1.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {group.title}
+              </p>
+              <ul className="rounded-xl border bg-card">
+                {group.items.map((it, idx) => {
+                  const Icon = it.icon;
+                  return (
+                    <li key={it.to + idx}>
+                      <Link
+                        to={it.to as any}
+                        onClick={() => setMenuOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 text-sm transition hover:bg-muted/60",
+                          idx !== 0 && "border-t",
+                        )}
+                      >
+                        <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand/10 text-brand">
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="flex-1 font-medium">{it.label}</span>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+          <button
+            onClick={() => { setMenuOpen(false); onLogout(); }}
+            className="mt-2 flex w-full items-center gap-2 rounded-xl border bg-card px-3 py-3 text-sm font-semibold text-destructive"
+          >
+            <LogOut className="h-4 w-4" /> Sign out
+          </button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile shell */}
       <div className="mx-auto max-w-md pb-24 md:hidden">
         <header className="brand-gradient sticky top-0 z-30 text-white">
-          <div className="flex items-center justify-between px-4 pb-4 pt-5">
-            <div className="min-w-0">
+          <div className="flex items-center gap-2 px-4 pb-4 pt-5">
+            {MenuDrawer}
+            <div className="min-w-0 flex-1">
               <p className="text-xs/4 opacity-80">{user?.business ?? "SunilDemo"}</p>
               <h1 className="truncate font-display text-xl font-bold">{title}</h1>
             </div>
@@ -39,9 +154,6 @@ export function AppShell({ children, title, action }: { children: ReactNode; tit
               {action}
               <button aria-label="Notifications" className="grid h-9 w-9 place-items-center rounded-full bg-white/15 backdrop-blur">
                 <Bell className="h-4 w-4" />
-              </button>
-              <button aria-label="Sign out" onClick={onLogout} className="grid h-9 w-9 place-items-center rounded-full bg-white/15 backdrop-blur">
-                <LogOut className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -107,9 +219,12 @@ export function AppShell({ children, title, action }: { children: ReactNode; tit
         </aside>
         <div className="flex-1">
           <header className="flex items-center justify-between border-b bg-card px-8 py-4">
-            <div>
-              <p className="text-xs text-muted-foreground">{user?.business}</p>
-              <h1 className="font-display text-2xl font-bold">{title}</h1>
+            <div className="flex items-center gap-3">
+              {MenuDrawer}
+              <div>
+                <p className="text-xs text-muted-foreground">{user?.business}</p>
+                <h1 className="font-display text-2xl font-bold">{title}</h1>
+              </div>
             </div>
             <div className="flex items-center gap-2">{action}</div>
           </header>
