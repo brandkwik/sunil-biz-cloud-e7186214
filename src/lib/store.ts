@@ -19,7 +19,14 @@ export type LineItem = {
   qty: number;
   rate: number;
   taxPct: number;
+  unit?: string;
+  category?: string;
+  barcode?: string;
+  hsn?: string;
 };
+
+export type PaymentMethod = "cash" | "bank" | "upi" | "cheque" | "card" | "online";
+
 
 export type DocKind = "invoice" | "proforma";
 export type DocStatus = "paid" | "unpaid" | "partial" | "draft";
@@ -36,7 +43,9 @@ export type InvoiceDoc = {
   notes?: string;
   status: DocStatus;
   paidAmount: number;
+  paymentMethod?: PaymentMethod;
 };
+
 
 export type Expense = {
   id: string;
@@ -188,17 +197,18 @@ export const actions = {
     state = { ...state, docs: [{ ...input, id: p(), number }, ...state.docs] };
     persist();
   },
-  markPaid(id: string) {
+  markPaid(id: string, method: PaymentMethod = "cash") {
     state = {
       ...state,
       docs: state.docs.map((d) =>
         d.id === id
-          ? { ...d, status: "paid" as DocStatus, paidAmount: docTotal(d) }
+          ? { ...d, status: "paid" as DocStatus, paidAmount: docTotal(d), paymentMethod: method }
           : d,
       ),
     };
     persist();
   },
+
   deleteDoc(id: string) {
     state = { ...state, docs: state.docs.filter((d) => d.id !== id) };
     persist();
