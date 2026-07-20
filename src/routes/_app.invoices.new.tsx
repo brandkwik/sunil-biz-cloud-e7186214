@@ -114,9 +114,28 @@ function NewInvoice() {
                     <Input type="number" value={i.taxPct} onChange={(e) => update(i.id, { taxPct: +e.target.value || 0 })} />
                   </div>
                 </div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-[11px]">Unit</Label>
+                    <Input placeholder="Pcs / Kg / Ltr" value={i.unit ?? ""} onChange={(e) => update(i.id, { unit: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-[11px]">Category</Label>
+                    <Input placeholder="General" value={i.category ?? ""} onChange={(e) => update(i.id, { category: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-[11px]">Barcode / SKU</Label>
+                    <Input placeholder="Scan or type" value={i.barcode ?? ""} onChange={(e) => update(i.id, { barcode: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-[11px]">HSN / SAC</Label>
+                    <Input placeholder="e.g. 998314" value={i.hsn ?? ""} onChange={(e) => update(i.id, { hsn: e.target.value })} />
+                  </div>
+                </div>
                 <p className="mt-2 text-right text-sm font-semibold">{formatINR(i.qty * i.rate * (1 + i.taxPct / 100))}</p>
               </div>
             ))}
+
           </div>
         </section>
 
