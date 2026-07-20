@@ -19,7 +19,14 @@ export type LineItem = {
   qty: number;
   rate: number;
   taxPct: number;
+  unit?: string;
+  category?: string;
+  barcode?: string;
+  hsn?: string;
 };
+
+export type PaymentMethod = "cash" | "bank" | "upi" | "cheque" | "card" | "online";
+
 
 export type DocKind = "invoice" | "proforma";
 export type DocStatus = "paid" | "unpaid" | "partial" | "draft";
