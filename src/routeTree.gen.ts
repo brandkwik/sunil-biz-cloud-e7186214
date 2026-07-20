@@ -17,6 +17,7 @@ import { Route as AppPartiesRouteImport } from './routes/_app.parties'
 import { Route as AppExpensesRouteImport } from './routes/_app.expenses'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app.invoices.index'
+import { Route as AppMoreSplatRouteImport } from './routes/_app.more.$'
 import { Route as AppInvoicesNewRouteImport } from './routes/_app.invoices.new'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app.invoices.$id'
 
@@ -59,6 +60,11 @@ const AppInvoicesIndexRoute = AppInvoicesIndexRouteImport.update({
   path: '/invoices/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMoreSplatRoute = AppMoreSplatRouteImport.update({
+  id: '/more/$',
+  path: '/more/$',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppInvoicesNewRoute = AppInvoicesNewRouteImport.update({
   id: '/invoices/new',
   path: '/invoices/new',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AppReportsRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/invoices/new': typeof AppInvoicesNewRoute
+  '/more/$': typeof AppMoreSplatRoute
   '/invoices/': typeof AppInvoicesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AppReportsRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/invoices/new': typeof AppInvoicesNewRoute
+  '/more/$': typeof AppMoreSplatRoute
   '/invoices': typeof AppInvoicesIndexRoute
 }
 export interface FileRoutesById {
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/_app/reports': typeof AppReportsRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
   '/_app/invoices/new': typeof AppInvoicesNewRoute
+  '/_app/more/$': typeof AppMoreSplatRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
 }
 export interface FileRouteTypes {
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/invoices/$id'
     | '/invoices/new'
+    | '/more/$'
     | '/invoices/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/invoices/$id'
     | '/invoices/new'
+    | '/more/$'
     | '/invoices'
   id:
     | '__root__'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/_app/reports'
     | '/_app/invoices/$id'
     | '/_app/invoices/new'
+    | '/_app/more/$'
     | '/_app/invoices/'
   fileRoutesById: FileRoutesById
 }
@@ -206,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInvoicesIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/more/$': {
+      id: '/_app/more/$'
+      path: '/more/$'
+      fullPath: '/more/$'
+      preLoaderRoute: typeof AppMoreSplatRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/invoices/new': {
       id: '/_app/invoices/new'
       path: '/invoices/new'
@@ -230,6 +249,7 @@ interface AppRouteChildren {
   AppReportsRoute: typeof AppReportsRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppInvoicesNewRoute: typeof AppInvoicesNewRoute
+  AppMoreSplatRoute: typeof AppMoreSplatRoute
   AppInvoicesIndexRoute: typeof AppInvoicesIndexRoute
 }
 
@@ -240,6 +260,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReportsRoute: AppReportsRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppInvoicesNewRoute: AppInvoicesNewRoute,
+  AppMoreSplatRoute: AppMoreSplatRoute,
   AppInvoicesIndexRoute: AppInvoicesIndexRoute,
 }
 
