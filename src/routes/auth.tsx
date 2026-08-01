@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { actions, useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +21,9 @@ function AuthPage() {
   const [name, setName] = useState("Sunil Kumar");
   const [business, setBusiness] = useState("SunilDemo Traders");
 
-  if (user && typeof window !== "undefined") {
-    router.navigate({ to: "/dashboard" });
-  }
+  useEffect(() => {
+    if (user) router.navigate({ to: "/dashboard", replace: true });
+  }, [user, router]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
