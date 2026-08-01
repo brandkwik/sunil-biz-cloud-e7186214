@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
-import { useStore, docTotal, docSubtotal, docTax, formatINR } from "@/lib/store";
+import { useStore, docTotal, docSubtotal, docTax, formatINR, bankBalance, cashBalance } from "@/lib/store";
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from "recharts";
 import { TrendingDown, TrendingUp, IndianRupee, Download } from "lucide-react";
