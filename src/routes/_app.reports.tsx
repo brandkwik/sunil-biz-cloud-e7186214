@@ -49,6 +49,10 @@ function ReportsPage() {
   const cashEntries = useStore((s) => s.cashEntries);
   const bankTxns = useStore((s) => s.bankTxns);
   const bankAccounts = useStore((s) => s.bankAccounts);
+  const loans = useStore((s) => s.loans);
+  const cheques = useStore((s) => s.cheques);
+  const cashOnHand = useStore((s) => cashBalance(s));
+  const bankTotals = useStore((s) => s.bankAccounts.map((b) => ({ id: b.id, name: b.name, balance: bankBalance(s, b.id) })));
 
   const [tab, setTab] = useState<TabId>("overview");
   const [from, setFrom] = useState("");
