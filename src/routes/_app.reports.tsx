@@ -51,8 +51,21 @@ function ReportsPage() {
   const bankAccounts = useStore((s) => s.bankAccounts);
   const loans = useStore((s) => s.loans);
   const cheques = useStore((s) => s.cheques);
-  const cashOnHand = useStore((s) => cashBalance(s));
-  const bankTotals = useStore((s) => s.bankAccounts.map((b) => ({ id: b.id, name: b.name, balance: bankBalance(s, b.id) })));
+  const cashOnHand = useMemo(
+    () => cashEntries.reduce((s, e) => s + (e.type === "in" ? e.amount : -e.amount), 0),
+    [cashEntries],
+  );
+  const bankTotals = useMemo(
+    () =>
+      bankAccounts.map((b) => ({
+        id: b.id,
+        name: b.name,
+        balance:
+          b.openingBalance +
+          bankTxns.filter((t) => t.bankId === b.id).reduce((s, t) => s + (t.type === "credit" ? t.amount : -t.amount), 0),
+      })),
+    [bankAccounts, bankTxns],
+  );
 
   const [tab, setTab] = useState<TabId>("overview");
   const [from, setFrom] = useState("");
