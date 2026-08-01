@@ -15,13 +15,18 @@ export const Route = createFileRoute("/_app/reports")({
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "pl", label: "Profit & Loss" },
+  { id: "balance", label: "Balance Sheet" },
+  { id: "cashflow", label: "Cash Flow" },
   { id: "sales", label: "Sale" },
   { id: "purchase", label: "Purchase" },
   { id: "expenses", label: "Expense" },
   { id: "gst", label: "GST / Tax" },
+  { id: "ageing", label: "Receivable / Payable" },
   { id: "party", label: "Party" },
   { id: "item", label: "Item / Stock" },
   { id: "cashbank", label: "Cash & Bank" },
+  { id: "loans", label: "Loans & Cheques" },
+  { id: "quotes", label: "Quotation" },
   { id: "daybook", label: "Day Book" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
