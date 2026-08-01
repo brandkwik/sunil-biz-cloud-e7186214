@@ -26,7 +26,7 @@ const KIND_LABEL: Record<DocKind, string> = {
 function nid() { return Math.random().toString(36).slice(2, 10); }
 
 function NewInvoice() {
-  const { kind } = Route.useSearch();
+  const { kind } = Route.useSearch() as { kind: DocKind };
   const parties = useStore((s) => s.parties);
   const router = useRouter();
 
