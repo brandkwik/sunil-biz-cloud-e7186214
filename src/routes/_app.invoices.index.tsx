@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_app/invoices/")({
 function InvoicesPage() {
   const docs = useStore((s) => s.docs);
   const router = useRouter();
-  const [tab, setTab] = useState<"all" | "invoice" | "proforma">("all");
+  const [tab, setTab] = useState<"all" | "invoice" | "proforma" | "quotation">("all");
   const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {
@@ -43,17 +43,18 @@ function InvoicesPage() {
         </div>
       </div>
 
-      <div className="mb-3 grid grid-cols-3 rounded-lg bg-muted p-1 text-xs font-semibold">
-        {(["all", "invoice", "proforma"] as const).map((k) => (
+      <div className="mb-3 grid grid-cols-4 rounded-lg bg-muted p-1 text-[11px] font-semibold">
+        {(["all", "invoice", "proforma", "quotation"] as const).map((k) => (
           <button
             key={k}
             onClick={() => setTab(k)}
             className={`rounded-md py-2 capitalize transition ${tab === k ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
           >
-            {k === "all" ? "All" : k === "invoice" ? "Sale Invoice" : "Proforma"}
+            {k === "all" ? "All" : k === "invoice" ? "Sale" : k === "proforma" ? "Proforma" : "Quotation"}
           </button>
         ))}
       </div>
+
 
       <div className="relative mb-3">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -64,7 +65,7 @@ function InvoicesPage() {
         {filtered.length === 0 && (
           <div className="p-10 text-center">
             <p className="text-sm font-medium">No records</p>
-            <p className="mt-1 text-xs text-muted-foreground">Tap + to create your first {tab === "proforma" ? "proforma" : "invoice"}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Tap + to create your first {tab === "proforma" ? "proforma" : tab === "quotation" ? "quotation" : "invoice"}</p>
           </div>
         )}
         {filtered.map((d) => (
@@ -75,7 +76,7 @@ function InvoicesPage() {
                 <StatusBadge status={d.status} />
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {d.number} · {new Date(d.date).toLocaleDateString("en-IN")} · {d.kind === "proforma" ? "Proforma" : "Invoice"}
+                {d.number} · {new Date(d.date).toLocaleDateString("en-IN")} · {d.kind === "proforma" ? "Proforma" : d.kind === "quotation" ? "Quotation" : "Invoice"}
               </p>
             </div>
             <div className="text-right">
@@ -91,12 +92,24 @@ function InvoicesPage() {
                   Mark paid
                 </button>
               )}
+              {d.kind === "quotation" && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    actions.convertToInvoice(d.id);
+                  }}
+                  className="mt-1 text-[11px] font-semibold text-brand hover:underline"
+                >
+                  Convert
+                </button>
+              )}
             </div>
           </Link>
         ))}
       </div>
 
-      <FabAdd label="New" onClick={() => router.navigate({ to: "/invoices/new", search: { kind: tab === "proforma" ? "proforma" : "invoice" } as any })} />
+      <FabAdd label="New" onClick={() => router.navigate({ to: "/invoices/new", search: { kind: tab === "all" ? "invoice" : tab } as any })} />
+
     </AppShell>
   );
 }
