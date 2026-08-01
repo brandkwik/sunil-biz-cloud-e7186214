@@ -1,18 +1,10 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { hasSessionUser } from "@/lib/session";
 
 export const Route = createFileRoute("/")({
   ssr: false,
   beforeLoad: () => {
-    if (typeof window !== "undefined") {
-      try {
-        const raw = localStorage.getItem("sunildemo:v1");
-        const parsed = raw ? JSON.parse(raw) : null;
-        if (parsed?.user) throw redirect({ to: "/dashboard" });
-      } catch (e: any) {
-        if (e?.isRedirect || e?.to) throw e;
-      }
-    }
-    throw redirect({ to: "/auth" });
+    throw redirect({ to: hasSessionUser() ? "/dashboard" : "/auth" });
   },
   component: () => null,
 });
