@@ -184,6 +184,53 @@ function ReportsPage() {
   const bankIn = bankTxns.filter((b) => inRange(b.date) && b.type === "credit").reduce((s, b) => s + b.amount, 0);
   const bankOut = bankTxns.filter((b) => inRange(b.date) && b.type === "debit").reduce((s, b) => s + b.amount, 0);
 
+
+  // Receivables / payables with ageing buckets
+  const ageBucket = (dateStr: string) => {
+    const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 864e5);
+    if (days <= 15) return "0-15 days";
+    if (days <= 30) return "16-30 days";
+    if (days <= 60) return "31-60 days";
+    return "60+ days";
+  };
+  const receivables = useMemo(
+    () =>
+      sales
+        .map((d) => ({ ref: `${d.number} · ${d.partyName}`, date: d.date, due: docTotal(d) - d.paidAmount }))
+        .filter((r) => r.due > 0.5)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [sales],
+  );
+  const payables = useMemo(
+    () => purs.filter((p) => p.status === "unpaid").map((p) => ({ ref: `${p.number} · ${p.vendorName}`, date: p.date, due: p.amount })),
+    [purs],
+  );
+  const receivableTotal = receivables.reduce((s, r) => s + r.due, 0);
+  const payableTotal = payables.reduce((s, r) => s + r.due, 0);
+  const ageing = useMemo(() => {
+    const buckets = ["0-15 days", "16-30 days", "31-60 days", "60+ days"];
+    return buckets.map((b) => ({
+      bucket: b,
+      receivable: receivables.filter((r) => ageBucket(r.date) === b).reduce((s, r) => s + r.due, 0),
+      payable: payables.filter((r) => ageBucket(r.date) === b).reduce((s, r) => s + r.due, 0),
+    }));
+  }, [receivables, payables]);
+
+  // Balance sheet
+  const bankTotal = bankTotals.reduce((s, b) => s + b.balance, 0);
+  const loanOutstanding = loans.reduce((s, l) => s + l.emi * l.monthsLeft, 0);
+  const totalAssets = cashOnHand + bankTotal + receivableTotal;
+  const totalLiabilities = payableTotal + loanOutstanding;
+  const netWorth = totalAssets - totalLiabilities;
+
+  // Cash flow
+  const cashCollected = sales.reduce((s, d) => s + d.paidAmount, 0);
+  const cashPaidPurchases = purs.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+  const netCashFlow = cashCollected + cashIn + bankIn - (cashPaidPurchases + expTotal + cashOut + bankOut);
+
+  // Cheques in range
+  const chequeRows = useMemo(() => cheques.filter((c) => inRange(c.date)), [cheques, inRange]);
+
   const exportCurrent = () => {
     if (tab === "sales") downloadCsv("sale-report", [["Number", "Party", "Date", "Total", "Paid", "Status"], ...sales.map((d) => [d.number, d.partyName, new Date(d.date).toLocaleDateString("en-IN"), Math.round(docTotal(d)), Math.round(d.paidAmount), d.status])]);
     else if (tab === "purchase") downloadCsv("purchase-report", [["Number", "Vendor", "Date", "Amount", "Status"], ...purs.map((p) => [p.number, p.vendorName, new Date(p.date).toLocaleDateString("en-IN"), p.amount, p.status])]);
