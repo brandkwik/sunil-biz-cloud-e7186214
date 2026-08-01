@@ -320,6 +320,98 @@ function ReportsPage() {
         </Card>
       )}
 
+      {tab === "balance" && (
+        <>
+          <Card title="Assets" right={<span className="text-xs font-semibold">{formatINR(totalAssets)}</span>}>
+            <Row label="Cash in hand" value={formatINR(cashOnHand)} />
+            <Row label="Bank balance" value={formatINR(bankTotal)} />
+            <Row label="Receivables (unpaid sales)" value={formatINR(receivableTotal)} />
+            <Row label="Total assets" value={formatINR(totalAssets)} bold />
+          </Card>
+          <Card title="Liabilities" right={<span className="text-xs font-semibold">{formatINR(totalLiabilities)}</span>}>
+            <Row label="Payables (unpaid purchases)" value={formatINR(payableTotal)} />
+            <Row label="Loans outstanding" value={formatINR(loanOutstanding)} />
+            <Row label="Total liabilities" value={formatINR(totalLiabilities)} bold />
+          </Card>
+          <Card title="Net worth">
+            <div className="flex justify-between font-display text-lg font-bold">
+              <span>Owner's equity</span>
+              <span className={netWorth >= 0 ? "text-success" : "text-destructive"}>{formatINR(netWorth)}</span>
+            </div>
+          </Card>
+        </>
+      )}
+
+      {tab === "cashflow" && (
+        <>
+          <Card title="Cash inflow">
+            <Row label="Collected from customers" value={formatINR(cashCollected)} />
+            <Row label="Cash entries (in)" value={formatINR(cashIn)} />
+            <Row label="Bank credits" value={formatINR(bankIn)} />
+            <Row label="Total inflow" value={formatINR(cashCollected + cashIn + bankIn)} bold />
+          </Card>
+          <Card title="Cash outflow">
+            <Row label="Purchases paid" value={formatINR(cashPaidPurchases)} />
+            <Row label="Expenses" value={formatINR(expTotal)} />
+            <Row label="Cash entries (out)" value={formatINR(cashOut)} />
+            <Row label="Bank debits" value={formatINR(bankOut)} />
+            <Row label="Total outflow" value={formatINR(cashPaidPurchases + expTotal + cashOut + bankOut)} bold />
+          </Card>
+          <Card title="Net cash flow">
+            <div className="flex justify-between font-display text-lg font-bold">
+              <span>Net movement</span>
+              <span className={netCashFlow >= 0 ? "text-success" : "text-destructive"}>{formatINR(netCashFlow)}</span>
+            </div>
+          </Card>
+        </>
+      )}
+
+      {tab === "ageing" && (
+        <>
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <Tile label="To receive" value={formatINR(receivableTotal)} icon={<TrendingUp className="h-4 w-4 text-success" />} />
+            <Tile label="To pay" value={formatINR(payableTotal)} tone="danger" icon={<TrendingDown className="h-4 w-4 text-destructive" />} />
+          </div>
+          <Card title="Ageing summary">
+            <Table head={["Bucket", "Receivable", "Payable"]} rows={ageing.map((a) => [a.bucket, formatINR(a.receivable), formatINR(a.payable)])} />
+          </Card>
+          <Card title="Receivables (bill wise)">
+            <Table head={["Bill", "Age", "Due"]} rows={receivables.map((r) => [r.ref, ageBucket(r.date), formatINR(r.due)])} />
+          </Card>
+          <Card title="Payables (bill wise)">
+            <Table head={["Bill", "Age", "Due"]} rows={payables.map((r) => [r.ref, ageBucket(r.date), formatINR(r.due)])} />
+          </Card>
+        </>
+      )}
+
+      {tab === "loans" && (
+        <>
+          <Card title="Loan statement" right={<span className="text-xs font-semibold">{formatINR(loanOutstanding)}</span>}>
+            <Table
+              head={["Loan", "EMI", "Outstanding"]}
+              rows={loans.map((l) => [`${l.name}\n${l.lender} · ${l.monthsLeft} months left · ${l.rate}%`, formatINR(l.emi), formatINR(l.emi * l.monthsLeft)])}
+            />
+          </Card>
+          <Card title="Cheque report" right={<span className="text-xs font-semibold">{chequeRows.length} cheques</span>}>
+            <Table
+              head={["Cheque", "Status", "Amount"]}
+              rows={chequeRows.map((c) => [`${c.chequeNo}\n${c.partyName} · ${c.direction}`, c.status, formatINR(c.amount)])}
+            />
+          </Card>
+        </>
+      )}
+
+      {tab === "quotes" && (
+        <Card title="Quotation & proforma report" right={<span className="text-xs font-semibold">{formatINR(quotes.reduce((s, d) => s + docTotal(d), 0))}</span>}>
+          <Table
+            head={["Document", "Date", "Value"]}
+            rows={quotes.map((d) => [`${d.number}\n${d.partyName} · ${d.kind}`, new Date(d.date).toLocaleDateString("en-IN"), formatINR(docTotal(d))])}
+          />
+        </Card>
+      )}
+
+
+
       {tab === "sales" && (
         <Card title="Sale report" right={<span className="text-xs font-semibold">{formatINR(salesTotal)}</span>}>
           <Table
