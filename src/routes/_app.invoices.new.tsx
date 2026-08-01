@@ -56,15 +56,15 @@ function NewInvoice() {
       date: new Date(date).toISOString(),
       items,
       notes,
-      status: kind === "proforma" ? "draft" : "unpaid",
+      status: kind === "invoice" ? "unpaid" : "draft",
       paidAmount: 0,
     });
-    toast.success(`${kind === "proforma" ? "Proforma" : "Invoice"} created`);
+    toast.success(`${KIND_LABEL[kind]} created`);
     router.navigate({ to: "/invoices" });
   };
 
   return (
-    <AppShell title={kind === "proforma" ? "New Proforma" : "New Invoice"}>
+    <AppShell title={`New ${KIND_LABEL[kind]}`}>
       <div className="space-y-4 pb-32">
         <section className="card-elevated space-y-4 rounded-2xl p-4">
           <div>
