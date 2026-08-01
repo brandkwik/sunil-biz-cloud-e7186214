@@ -27,7 +27,7 @@ export type LineItem = {
 
 export type PaymentMethod = "cash" | "bank" | "upi" | "cheque" | "card" | "online";
 
-export type DocKind = "invoice" | "proforma";
+export type DocKind = "invoice" | "proforma" | "quotation";
 export type DocStatus = "paid" | "unpaid" | "partial" | "draft";
 
 export type InvoiceDoc = {
@@ -287,11 +287,30 @@ export const actions = {
     persist();
   },
   addDoc(input: Omit<InvoiceDoc, "id" | "number"> & { number?: string }) {
-    const kindPrefix = input.kind === "invoice" ? "INV" : "PRO";
+    const kindPrefix =
+      input.kind === "invoice" ? "INV" : input.kind === "quotation" ? "QTN" : "PRO";
     const count = state.docs.filter((d) => d.kind === input.kind).length + 1;
     const number = input.number ?? `${kindPrefix}-${count.toString().padStart(4, "0")}`;
     state = { ...state, docs: [{ ...input, id: p(), number }, ...state.docs] };
     persist();
+  },
+  convertToInvoice(id: string) {
+    const src = state.docs.find((d) => d.id === id);
+    if (!src) return;
+    const count = state.docs.filter((d) => d.kind === "invoice").length + 1;
+    const number = `INV-${count.toString().padStart(4, "0")}`;
+    const doc: InvoiceDoc = {
+      ...src,
+      id: p(),
+      number,
+      kind: "invoice",
+      status: "unpaid",
+      paidAmount: 0,
+      date: new Date().toISOString(),
+    };
+    state = { ...state, docs: [doc, ...state.docs] };
+    persist();
+    return doc.id;
   },
   markPaid(id: string, method: PaymentMethod = "cash") {
     state = {

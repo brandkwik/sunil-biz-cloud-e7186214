@@ -12,15 +12,21 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/invoices/new")({
   validateSearch: (s: Record<string, unknown>) => ({
-    kind: (s.kind === "proforma" ? "proforma" : "invoice") as DocKind,
+    kind: (s.kind === "proforma" || s.kind === "quotation" ? s.kind : "invoice") as DocKind as DocKind,
   }),
   component: NewInvoice,
 });
 
+const KIND_LABEL: Record<DocKind, string> = {
+  invoice: "Invoice",
+  proforma: "Proforma",
+  quotation: "Quotation",
+};
+
 function nid() { return Math.random().toString(36).slice(2, 10); }
 
 function NewInvoice() {
-  const { kind } = Route.useSearch();
+  const { kind } = Route.useSearch() as { kind: DocKind };
   const parties = useStore((s) => s.parties);
   const router = useRouter();
 
@@ -50,15 +56,15 @@ function NewInvoice() {
       date: new Date(date).toISOString(),
       items,
       notes,
-      status: kind === "proforma" ? "draft" : "unpaid",
+      status: kind === "invoice" ? "unpaid" : "draft",
       paidAmount: 0,
     });
-    toast.success(`${kind === "proforma" ? "Proforma" : "Invoice"} created`);
+    toast.success(`${KIND_LABEL[kind]} created`);
     router.navigate({ to: "/invoices" });
   };
 
   return (
-    <AppShell title={kind === "proforma" ? "New Proforma" : "New Invoice"}>
+    <AppShell title={`New ${KIND_LABEL[kind]}`}>
       <div className="space-y-4 pb-32">
         <section className="card-elevated space-y-4 rounded-2xl p-4">
           <div>

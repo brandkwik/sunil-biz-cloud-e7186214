@@ -37,6 +37,7 @@ const MENU: MenuGroup[] = [
     title: "My Business",
     items: [
       { to: "/invoices", label: "Sale", icon: ShoppingBag },
+      { to: "/invoices/new?kind=quotation", label: "Quotation / Estimate", icon: FileText },
       { to: "/more/business/purchase", label: "Purchase", icon: ShoppingCart },
       { to: "/expenses", label: "Expenses", icon: Wallet },
       { to: "/reports", label: "Reports", icon: BarChart3 },
