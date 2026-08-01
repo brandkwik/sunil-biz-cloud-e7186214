@@ -15,13 +15,18 @@ export const Route = createFileRoute("/_app/reports")({
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "pl", label: "Profit & Loss" },
+  { id: "balance", label: "Balance Sheet" },
+  { id: "cashflow", label: "Cash Flow" },
   { id: "sales", label: "Sale" },
   { id: "purchase", label: "Purchase" },
   { id: "expenses", label: "Expense" },
   { id: "gst", label: "GST / Tax" },
+  { id: "ageing", label: "Receivable / Payable" },
   { id: "party", label: "Party" },
   { id: "item", label: "Item / Stock" },
   { id: "cashbank", label: "Cash & Bank" },
+  { id: "loans", label: "Loans & Cheques" },
+  { id: "quotes", label: "Quotation" },
   { id: "daybook", label: "Day Book" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
@@ -44,6 +49,23 @@ function ReportsPage() {
   const cashEntries = useStore((s) => s.cashEntries);
   const bankTxns = useStore((s) => s.bankTxns);
   const bankAccounts = useStore((s) => s.bankAccounts);
+  const loans = useStore((s) => s.loans);
+  const cheques = useStore((s) => s.cheques);
+  const cashOnHand = useMemo(
+    () => cashEntries.reduce((s, e) => s + (e.type === "in" ? e.amount : -e.amount), 0),
+    [cashEntries],
+  );
+  const bankTotals = useMemo(
+    () =>
+      bankAccounts.map((b) => ({
+        id: b.id,
+        name: b.name,
+        balance:
+          b.openingBalance +
+          bankTxns.filter((t) => t.bankId === b.id).reduce((s, t) => s + (t.type === "credit" ? t.amount : -t.amount), 0),
+      })),
+    [bankAccounts, bankTxns],
+  );
 
   const [tab, setTab] = useState<TabId>("overview");
   const [from, setFrom] = useState("");
@@ -162,6 +184,53 @@ function ReportsPage() {
   const bankIn = bankTxns.filter((b) => inRange(b.date) && b.type === "credit").reduce((s, b) => s + b.amount, 0);
   const bankOut = bankTxns.filter((b) => inRange(b.date) && b.type === "debit").reduce((s, b) => s + b.amount, 0);
 
+
+  // Receivables / payables with ageing buckets
+  const ageBucket = (dateStr: string) => {
+    const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 864e5);
+    if (days <= 15) return "0-15 days";
+    if (days <= 30) return "16-30 days";
+    if (days <= 60) return "31-60 days";
+    return "60+ days";
+  };
+  const receivables = useMemo(
+    () =>
+      sales
+        .map((d) => ({ ref: `${d.number} · ${d.partyName}`, date: d.date, due: docTotal(d) - d.paidAmount }))
+        .filter((r) => r.due > 0.5)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [sales],
+  );
+  const payables = useMemo(
+    () => purs.filter((p) => p.status === "unpaid").map((p) => ({ ref: `${p.number} · ${p.vendorName}`, date: p.date, due: p.amount })),
+    [purs],
+  );
+  const receivableTotal = receivables.reduce((s, r) => s + r.due, 0);
+  const payableTotal = payables.reduce((s, r) => s + r.due, 0);
+  const ageing = useMemo(() => {
+    const buckets = ["0-15 days", "16-30 days", "31-60 days", "60+ days"];
+    return buckets.map((b) => ({
+      bucket: b,
+      receivable: receivables.filter((r) => ageBucket(r.date) === b).reduce((s, r) => s + r.due, 0),
+      payable: payables.filter((r) => ageBucket(r.date) === b).reduce((s, r) => s + r.due, 0),
+    }));
+  }, [receivables, payables]);
+
+  // Balance sheet
+  const bankTotal = bankTotals.reduce((s, b) => s + b.balance, 0);
+  const loanOutstanding = loans.reduce((s, l) => s + l.emi * l.monthsLeft, 0);
+  const totalAssets = cashOnHand + bankTotal + receivableTotal;
+  const totalLiabilities = payableTotal + loanOutstanding;
+  const netWorth = totalAssets - totalLiabilities;
+
+  // Cash flow
+  const cashCollected = sales.reduce((s, d) => s + d.paidAmount, 0);
+  const cashPaidPurchases = purs.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+  const netCashFlow = cashCollected + cashIn + bankIn - (cashPaidPurchases + expTotal + cashOut + bankOut);
+
+  // Cheques in range
+  const chequeRows = useMemo(() => cheques.filter((c) => inRange(c.date)), [cheques, inRange]);
+
   const exportCurrent = () => {
     if (tab === "sales") downloadCsv("sale-report", [["Number", "Party", "Date", "Total", "Paid", "Status"], ...sales.map((d) => [d.number, d.partyName, new Date(d.date).toLocaleDateString("en-IN"), Math.round(docTotal(d)), Math.round(d.paidAmount), d.status])]);
     else if (tab === "purchase") downloadCsv("purchase-report", [["Number", "Vendor", "Date", "Amount", "Status"], ...purs.map((p) => [p.number, p.vendorName, new Date(p.date).toLocaleDateString("en-IN"), p.amount, p.status])]);
@@ -170,6 +239,11 @@ function ReportsPage() {
     else if (tab === "party") downloadCsv("party-report", [["Party", "Type", "Invoices", "Sales", "Due"], ...partyRows.map((p) => [p.name, p.type, p.count, Math.round(p.total), Math.round(p.due)])]);
     else if (tab === "item") downloadCsv("item-report", [["Item", "Qty", "Amount", "Tax"], ...itemRows.map((i) => [i.name, i.qty, Math.round(i.amount), Math.round(i.tax)])]);
     else if (tab === "daybook") downloadCsv("day-book", [["Date", "Type", "Details", "In", "Out"], ...dayBook.map((r) => [new Date(r.date).toLocaleDateString("en-IN"), r.type, r.ref, Math.round(r.inAmt), Math.round(r.outAmt)])]);
+    else if (tab === "balance") downloadCsv("balance-sheet", [["Head", "Amount"], ["Cash in hand", Math.round(cashOnHand)], ["Bank balance", Math.round(bankTotal)], ["Receivables", Math.round(receivableTotal)], ["Total assets", Math.round(totalAssets)], ["Payables", Math.round(payableTotal)], ["Loans outstanding", Math.round(loanOutstanding)], ["Total liabilities", Math.round(totalLiabilities)], ["Net worth", Math.round(netWorth)]]);
+    else if (tab === "cashflow") downloadCsv("cash-flow", [["Head", "Amount"], ["Collected from customers", Math.round(cashCollected)], ["Cash received", Math.round(cashIn)], ["Bank credit", Math.round(bankIn)], ["Purchases paid", Math.round(cashPaidPurchases)], ["Expenses", Math.round(expTotal)], ["Cash paid out", Math.round(cashOut)], ["Bank debit", Math.round(bankOut)], ["Net cash flow", Math.round(netCashFlow)]]);
+    else if (tab === "ageing") downloadCsv("receivable-payable", [["Bucket", "Receivable", "Payable"], ...ageing.map((a) => [a.bucket, Math.round(a.receivable), Math.round(a.payable)])]);
+    else if (tab === "loans") downloadCsv("loans-cheques", [["Type", "Details", "Amount", "Status"], ...loans.map((l) => ["Loan", `${l.name} · ${l.lender}`, Math.round(l.emi * l.monthsLeft), `${l.monthsLeft} EMIs left`]), ...chequeRows.map((c) => ["Cheque", `${c.chequeNo} · ${c.partyName}`, Math.round(c.amount), `${c.direction} · ${c.status}`])]);
+    else if (tab === "quotes") downloadCsv("quotation-report", [["Number", "Party", "Kind", "Date", "Value"], ...quotes.map((d) => [d.number, d.partyName, d.kind, new Date(d.date).toLocaleDateString("en-IN"), Math.round(docTotal(d))])]);
     else downloadCsv("profit-loss", [["Head", "Amount"], ["Sales (net)", Math.round(salesNet)], ["GST collected", Math.round(outputTax)], ["Purchases", Math.round(purTotal)], ["Gross profit", Math.round(grossProfit)], ["Expenses", Math.round(expTotal)], ["Net profit", Math.round(netProfit)]]);
   };
 
@@ -245,6 +319,98 @@ function ReportsPage() {
           </div>
         </Card>
       )}
+
+      {tab === "balance" && (
+        <>
+          <Card title="Assets" right={<span className="text-xs font-semibold">{formatINR(totalAssets)}</span>}>
+            <Row label="Cash in hand" value={formatINR(cashOnHand)} />
+            <Row label="Bank balance" value={formatINR(bankTotal)} />
+            <Row label="Receivables (unpaid sales)" value={formatINR(receivableTotal)} />
+            <Row label="Total assets" value={formatINR(totalAssets)} bold />
+          </Card>
+          <Card title="Liabilities" right={<span className="text-xs font-semibold">{formatINR(totalLiabilities)}</span>}>
+            <Row label="Payables (unpaid purchases)" value={formatINR(payableTotal)} />
+            <Row label="Loans outstanding" value={formatINR(loanOutstanding)} />
+            <Row label="Total liabilities" value={formatINR(totalLiabilities)} bold />
+          </Card>
+          <Card title="Net worth">
+            <div className="flex justify-between font-display text-lg font-bold">
+              <span>Owner's equity</span>
+              <span className={netWorth >= 0 ? "text-success" : "text-destructive"}>{formatINR(netWorth)}</span>
+            </div>
+          </Card>
+        </>
+      )}
+
+      {tab === "cashflow" && (
+        <>
+          <Card title="Cash inflow">
+            <Row label="Collected from customers" value={formatINR(cashCollected)} />
+            <Row label="Cash entries (in)" value={formatINR(cashIn)} />
+            <Row label="Bank credits" value={formatINR(bankIn)} />
+            <Row label="Total inflow" value={formatINR(cashCollected + cashIn + bankIn)} bold />
+          </Card>
+          <Card title="Cash outflow">
+            <Row label="Purchases paid" value={formatINR(cashPaidPurchases)} />
+            <Row label="Expenses" value={formatINR(expTotal)} />
+            <Row label="Cash entries (out)" value={formatINR(cashOut)} />
+            <Row label="Bank debits" value={formatINR(bankOut)} />
+            <Row label="Total outflow" value={formatINR(cashPaidPurchases + expTotal + cashOut + bankOut)} bold />
+          </Card>
+          <Card title="Net cash flow">
+            <div className="flex justify-between font-display text-lg font-bold">
+              <span>Net movement</span>
+              <span className={netCashFlow >= 0 ? "text-success" : "text-destructive"}>{formatINR(netCashFlow)}</span>
+            </div>
+          </Card>
+        </>
+      )}
+
+      {tab === "ageing" && (
+        <>
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <Tile label="To receive" value={formatINR(receivableTotal)} icon={<TrendingUp className="h-4 w-4 text-success" />} />
+            <Tile label="To pay" value={formatINR(payableTotal)} tone="danger" icon={<TrendingDown className="h-4 w-4 text-destructive" />} />
+          </div>
+          <Card title="Ageing summary">
+            <Table head={["Bucket", "Receivable", "Payable"]} rows={ageing.map((a) => [a.bucket, formatINR(a.receivable), formatINR(a.payable)])} />
+          </Card>
+          <Card title="Receivables (bill wise)">
+            <Table head={["Bill", "Age", "Due"]} rows={receivables.map((r) => [r.ref, ageBucket(r.date), formatINR(r.due)])} />
+          </Card>
+          <Card title="Payables (bill wise)">
+            <Table head={["Bill", "Age", "Due"]} rows={payables.map((r) => [r.ref, ageBucket(r.date), formatINR(r.due)])} />
+          </Card>
+        </>
+      )}
+
+      {tab === "loans" && (
+        <>
+          <Card title="Loan statement" right={<span className="text-xs font-semibold">{formatINR(loanOutstanding)}</span>}>
+            <Table
+              head={["Loan", "EMI", "Outstanding"]}
+              rows={loans.map((l) => [`${l.name}\n${l.lender} · ${l.monthsLeft} months left · ${l.rate}%`, formatINR(l.emi), formatINR(l.emi * l.monthsLeft)])}
+            />
+          </Card>
+          <Card title="Cheque report" right={<span className="text-xs font-semibold">{chequeRows.length} cheques</span>}>
+            <Table
+              head={["Cheque", "Status", "Amount"]}
+              rows={chequeRows.map((c) => [`${c.chequeNo}\n${c.partyName} · ${c.direction}`, c.status, formatINR(c.amount)])}
+            />
+          </Card>
+        </>
+      )}
+
+      {tab === "quotes" && (
+        <Card title="Quotation & proforma report" right={<span className="text-xs font-semibold">{formatINR(quotes.reduce((s, d) => s + docTotal(d), 0))}</span>}>
+          <Table
+            head={["Document", "Date", "Value"]}
+            rows={quotes.map((d) => [`${d.number}\n${d.partyName} · ${d.kind}`, new Date(d.date).toLocaleDateString("en-IN"), formatINR(docTotal(d))])}
+          />
+        </Card>
+      )}
+
+
 
       {tab === "sales" && (
         <Card title="Sale report" right={<span className="text-xs font-semibold">{formatINR(salesTotal)}</span>}>
