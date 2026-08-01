@@ -62,7 +62,7 @@ function InvoiceDetail() {
         <section className="card-elevated rounded-2xl p-5">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{doc.kind === "proforma" ? "Proforma Invoice" : "Tax Invoice"}</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{doc.kind === "proforma" ? "Proforma Invoice" : doc.kind === "quotation" ? "Quotation / Estimate" : "Tax Invoice"}</p>
               <h2 className="mt-1 font-display text-xl font-bold">{doc.number}</h2>
               <p className="mt-1 text-xs text-muted-foreground">{new Date(doc.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
             </div>
@@ -138,6 +138,18 @@ function InvoiceDetail() {
           {doc.status !== "paid" && doc.kind === "invoice" && (
             <Button onClick={() => setPayOpen(true)} className="flex-1 brand-gradient font-semibold text-white hover:opacity-95">
               <CheckCircle2 className="mr-1 h-4 w-4" /> Mark paid
+            </Button>
+          )}
+          {doc.kind !== "invoice" && (
+            <Button
+              onClick={() => {
+                const newId = actions.convertToInvoice(doc.id);
+                toast.success("Converted to invoice");
+                if (newId) router.navigate({ to: "/invoices/$id", params: { id: newId } });
+              }}
+              className="flex-1 brand-gradient font-semibold text-white hover:opacity-95"
+            >
+              <CheckCircle2 className="mr-1 h-4 w-4" /> Convert to invoice
             </Button>
           )}
         </div>
