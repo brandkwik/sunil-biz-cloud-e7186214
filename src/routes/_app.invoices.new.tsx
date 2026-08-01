@@ -12,7 +12,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/invoices/new")({
   validateSearch: (s: Record<string, unknown>) => ({
-    kind: (s.kind === "proforma" || s.kind === "quotation" ? s.kind : "invoice") as DocKind,
+    kind: (s.kind === "proforma" || s.kind === "quotation" ? s.kind : "invoice") as DocKind as DocKind,
   }),
   component: NewInvoice,
 });
