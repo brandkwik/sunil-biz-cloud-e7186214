@@ -12,10 +12,16 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/invoices/new")({
   validateSearch: (s: Record<string, unknown>) => ({
-    kind: (s.kind === "proforma" ? "proforma" : "invoice") as DocKind,
+    kind: (s.kind === "proforma" || s.kind === "quotation" ? s.kind : "invoice") as DocKind,
   }),
   component: NewInvoice,
 });
+
+const KIND_LABEL: Record<DocKind, string> = {
+  invoice: "Invoice",
+  proforma: "Proforma",
+  quotation: "Quotation",
+};
 
 function nid() { return Math.random().toString(36).slice(2, 10); }
 
