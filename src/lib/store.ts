@@ -395,7 +395,47 @@ export function getState() {
   return state;
 }
 
+const PREFIX: Record<DocKind, string> = {
+  invoice: "INV",
+  proforma: "PRO",
+  quotation: "QTN",
+  estimate: "EST",
+  credit_note: "CRN",
+};
+
+function nextNumber(kind: DocKind) {
+  const count = state.docs.filter((d) => d.kind === kind).length + 1;
+  return `${PREFIX[kind]}-${count.toString().padStart(4, "0")}`;
+}
+
+// Stock ledger: invoices reduce stock, credit notes add it back.
+function stockSign(kind: DocKind) {
+  if (kind === "invoice") return -1;
+  if (kind === "credit_note") return 1;
+  return 0;
+}
+
+function moveStock(lines: LineItem[], sign: number, reason: string, ref?: string) {
+  if (!sign) return;
+  const moves: StockMove[] = [];
+  const items = state.items.map((it) => {
+    const qty = lines.filter((l) => l.itemId === it.id).reduce((s, l) => s + l.qty, 0);
+    if (!qty) return it;
+    moves.push({ id: p(), itemId: it.id, itemName: it.name, qty: qty * sign, reason, ref, date: new Date().toISOString() });
+    return it.type === "service" ? it : { ...it, stock: it.stock + qty * sign };
+  });
+  state = { ...state, items, stockMoves: [...moves, ...state.stockMoves] };
+}
+
+function applyStock(doc: InvoiceDoc) {
+  moveStock(doc.items, stockSign(doc.kind), doc.kind === "credit_note" ? "Sales return" : "Sale", doc.number);
+}
+function revertStock(doc: InvoiceDoc) {
+  moveStock(doc.items, -stockSign(doc.kind), "Document deleted", doc.number);
+}
+
 export const actions = {
+
   login(email: string, name = "Sunil", business = "SunilDemo Traders") {
     state = { ...state, user: { name, business, email } };
     persist();
