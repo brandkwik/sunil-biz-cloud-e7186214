@@ -224,6 +224,15 @@ function initial(): State {
         "app.beta": false,
       },
     },
+    subscription: {
+      plan: "free",
+      cycle: "1y",
+      device: "mobile",
+      startedAt: iso(today),
+      expiresAt: iso(new Date(today.getTime() + 14 * 864e5)),
+      autoRenew: false,
+      history: [],
+    },
   };
 }
 
