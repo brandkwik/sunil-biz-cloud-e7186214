@@ -173,8 +173,17 @@ function NewInvoice() {
                     <Label className="text-[11px]">HSN / SAC</Label>
                     <Input placeholder="e.g. 998314" value={i.hsn ?? ""} onChange={(e) => update(i.id, { hsn: e.target.value })} />
                   </div>
+                  <div>
+                    <Label className="text-[11px]">Discount %</Label>
+                    <Input type="number" value={i.discountPct ?? 0} onChange={(e) => update(i.id, { discountPct: +e.target.value || 0 })} />
+                  </div>
+                  <div>
+                    <Label className="text-[11px]">Cost / unit</Label>
+                    <Input type="number" value={i.cost ?? 0} onChange={(e) => update(i.id, { cost: +e.target.value || 0 })} />
+                  </div>
                 </div>
-                <p className="mt-2 text-right text-sm font-semibold">{formatINR(i.qty * i.rate * (1 + i.taxPct / 100))}</p>
+                <p className="mt-2 text-right text-sm font-semibold">{formatINR(lineAmount(i) * (1 + i.taxPct / 100))}</p>
+
               </div>
             ))}
 
