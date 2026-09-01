@@ -688,10 +688,29 @@ export const actions = {
   },
   // Purchases
   addPurchase(input: Omit<Purchase, "id" | "number">) {
-    const count = state.purchases.length + 1;
-    const number = `PUR-${count.toString().padStart(4, "0")}`;
-    state = { ...state, purchases: [{ ...input, id: p(), number }, ...state.purchases] };
+    const kind = input.kind ?? "bill";
+    const same = state.purchases.filter((x) => (x.kind ?? "bill") === kind).length + 1;
+    const number = `${kind === "bill" ? "PUR" : "DBN"}-${same.toString().padStart(4, "0")}`;
+    const rec: Purchase = { ...input, kind, id: p(), number };
+    state = { ...state, purchases: [rec, ...state.purchases] };
+    if (rec.items?.length) {
+      moveStock(rec.items, kind === "bill" ? 1 : -1, kind === "bill" ? "Purchase" : "Purchase return", number);
+    }
     persist();
+    return rec.id;
+  },
+  createPurchaseReturn(purchaseId: string, amount: number, lines?: LineItem[]) {
+    const src = state.purchases.find((x) => x.id === purchaseId);
+    if (!src) return;
+    return this.addPurchase({
+      vendorName: src.vendorName,
+      amount,
+      date: new Date().toISOString(),
+      status: "unpaid",
+      kind: "debit_note",
+      items: lines ?? src.items,
+      sourceId: src.id,
+    });
   },
   togglePurchasePaid(id: string) {
     state = {
@@ -703,9 +722,12 @@ export const actions = {
     persist();
   },
   deletePurchase(id: string) {
+    const rec = state.purchases.find((x) => x.id === id);
     state = { ...state, purchases: state.purchases.filter((x) => x.id !== id) };
+    if (rec?.items?.length) moveStock(rec.items, (rec.kind ?? "bill") === "bill" ? -1 : 1, "Purchase deleted", rec.number);
     persist();
   },
+
   // Companies
   addCompany(input: Omit<Company, "id" | "active">) {
     state = { ...state, companies: [...state.companies, { ...input, id: p(), active: false }] };
