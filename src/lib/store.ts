@@ -253,6 +253,7 @@ function migrate(raw: any): State {
     loans: raw?.loans ?? base.loans,
     purchases: raw?.purchases ?? base.purchases,
     companies: raw?.companies ?? base.companies,
+    subscription: { ...base.subscription, ...(raw?.subscription ?? {}) },
   };
 }
 
