@@ -468,6 +468,43 @@ export const actions = {
     state = { ...state, settings: { ...state.settings, currency: code } };
     persist();
   },
+  // Subscription
+  subscribePlan(input: { plan: PlanId; cycle: BillingCycle; device: PlanDevice; amount: number }) {
+    const years = input.cycle === "1y" ? 1 : input.cycle === "2y" ? 2 : 3;
+    const now = new Date();
+    const current = state.subscription;
+    const base =
+      current.plan !== "free" && new Date(current.expiresAt) > now ? new Date(current.expiresAt) : now;
+    const expires = new Date(base.getTime());
+    expires.setFullYear(expires.getFullYear() + years);
+    state = {
+      ...state,
+      subscription: {
+        ...current,
+        plan: input.plan,
+        cycle: input.cycle,
+        device: input.device,
+        startedAt: now.toISOString(),
+        expiresAt: expires.toISOString(),
+        history: [
+          { id: p(), plan: input.plan, cycle: input.cycle, device: input.device, amount: input.amount, date: now.toISOString() },
+          ...current.history,
+        ],
+      },
+    };
+    persist();
+  },
+  setAutoRenew(on: boolean) {
+    state = { ...state, subscription: { ...state.subscription, autoRenew: on } };
+    persist();
+  },
+  cancelPlan() {
+    state = {
+      ...state,
+      subscription: { ...state.subscription, plan: "free", autoRenew: false, expiresAt: new Date().toISOString() },
+    };
+    persist();
+  },
   reset() {
     state = initial();
     persist();
