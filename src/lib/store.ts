@@ -342,6 +342,10 @@ function migrate(raw: any): State {
       ...(raw?.settings ?? {}),
       toggles: { ...base.settings.toggles, ...(raw?.settings?.toggles ?? {}) },
     },
+    business: { ...base.business, ...(raw?.business ?? {}) },
+    items: raw?.items ?? base.items,
+    stockMoves: raw?.stockMoves ?? base.stockMoves,
+    otherIncome: raw?.otherIncome ?? base.otherIncome,
     bankAccounts: raw?.bankAccounts ?? base.bankAccounts,
     bankTxns: raw?.bankTxns ?? base.bankTxns,
     cashEntries: raw?.cashEntries ?? base.cashEntries,
@@ -350,6 +354,7 @@ function migrate(raw: any): State {
     purchases: raw?.purchases ?? base.purchases,
     companies: raw?.companies ?? base.companies,
     subscription: { ...base.subscription, ...(raw?.subscription ?? {}) },
+
   };
 }
 
