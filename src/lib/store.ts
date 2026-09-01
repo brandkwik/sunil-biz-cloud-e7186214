@@ -15,20 +15,61 @@ export type Party = {
 
 export type LineItem = {
   id: string;
+  itemId?: string;
   name: string;
   qty: number;
   rate: number;
   taxPct: number;
+  discountPct?: number;
   unit?: string;
   category?: string;
   barcode?: string;
   hsn?: string;
+  mrp?: number;
+  cost?: number;
+};
+
+export type Item = {
+  id: string;
+  name: string;
+  type: "product" | "service";
+  sku?: string;
+  barcode?: string;
+  hsn?: string;
+  unit: string;
+  category?: string;
+  purchasePrice: number;
+  salePrice: number;
+  mrp?: number;
+  taxPct: number;
+  stock: number;
+  minStock: number;
+  batch?: string;
+  expiry?: string;
+};
+
+export type StockMove = {
+  id: string;
+  itemId: string;
+  itemName: string;
+  qty: number; // +in / -out
+  reason: string;
+  ref?: string;
+  date: string;
 };
 
 export type PaymentMethod = "cash" | "bank" | "upi" | "cheque" | "card" | "online";
 
-export type DocKind = "invoice" | "proforma" | "quotation";
-export type DocStatus = "paid" | "unpaid" | "partial" | "draft";
+export type Payment = {
+  id: string;
+  amount: number;
+  method: PaymentMethod;
+  date: string;
+  note?: string;
+};
+
+export type DocKind = "invoice" | "proforma" | "quotation" | "estimate" | "credit_note";
+export type DocStatus = "paid" | "unpaid" | "partial" | "draft" | "sent" | "accepted" | "converted";
 
 export type InvoiceDoc = {
   id: string;
@@ -43,7 +84,33 @@ export type InvoiceDoc = {
   status: DocStatus;
   paidAmount: number;
   paymentMethod?: PaymentMethod;
+  payments?: Payment[];
+  sourceId?: string;
+  convertedToId?: string;
+  shipping?: number;
+  roundOff?: number;
 };
+
+export type OtherIncome = {
+  id: string;
+  source: string;
+  amount: number;
+  date: string;
+  note?: string;
+};
+
+export type Business = {
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  gstin?: string;
+  state?: string;
+  terms?: string;
+  upiId?: string;
+  bankLine?: string;
+};
+
 
 export type Expense = {
   id: string;
