@@ -412,47 +412,175 @@ export const actions = {
     state = { ...state, parties: state.parties.filter((x) => x.id !== id) };
     persist();
   },
+  updateParty(id: string, patch: Partial<Party>) {
+    state = { ...state, parties: state.parties.map((x) => (x.id === id ? { ...x, ...patch } : x)) };
+    persist();
+  },
+  // ---- Item master + stock ledger
+  addItem(input: Omit<Item, "id">) {
+    state = { ...state, items: [...state.items, { ...input, id: p() }] };
+    persist();
+  },
+  updateItem(id: string, patch: Partial<Item>) {
+    state = { ...state, items: state.items.map((x) => (x.id === id ? { ...x, ...patch } : x)) };
+    persist();
+  },
+  deleteItem(id: string) {
+    state = { ...state, items: state.items.filter((x) => x.id !== id) };
+    persist();
+  },
+  adjustStock(itemId: string, qty: number, reason = "Manual adjustment", ref?: string) {
+    const it = state.items.find((x) => x.id === itemId);
+    if (!it) return;
+    state = {
+      ...state,
+      items: state.items.map((x) => (x.id === itemId ? { ...x, stock: x.stock + qty } : x)),
+      stockMoves: [
+        { id: p(), itemId, itemName: it.name, qty, reason, ref, date: new Date().toISOString() },
+        ...state.stockMoves,
+      ],
+    };
+    persist();
+  },
   addDoc(input: Omit<InvoiceDoc, "id" | "number"> & { number?: string }) {
-    const kindPrefix =
-      input.kind === "invoice" ? "INV" : input.kind === "quotation" ? "QTN" : "PRO";
-    const count = state.docs.filter((d) => d.kind === input.kind).length + 1;
-    const number = input.number ?? `${kindPrefix}-${count.toString().padStart(4, "0")}`;
-    state = { ...state, docs: [{ ...input, id: p(), number }, ...state.docs] };
+    const number = input.number ?? nextNumber(input.kind);
+    const doc: InvoiceDoc = { ...input, id: p(), number, payments: input.payments ?? [] };
+    state = { ...state, docs: [doc, ...state.docs] };
+    applyStock(doc);
+    if (input.sourceId) {
+      state = {
+        ...state,
+        docs: state.docs.map((d) =>
+          d.id === input.sourceId ? { ...d, status: "converted" as DocStatus, convertedToId: doc.id } : d,
+        ),
+      };
+    }
+    persist();
+    return doc.id;
+  },
+  updateDoc(id: string, patch: Partial<InvoiceDoc>) {
+    state = { ...state, docs: state.docs.map((d) => (d.id === id ? { ...d, ...patch } : d)) };
+    persist();
+  },
+  setDocStatus(id: string, status: DocStatus) {
+    state = { ...state, docs: state.docs.map((d) => (d.id === id ? { ...d, status } : d)) };
     persist();
   },
   convertToInvoice(id: string) {
     const src = state.docs.find((d) => d.id === id);
     if (!src) return;
-    const count = state.docs.filter((d) => d.kind === "invoice").length + 1;
-    const number = `INV-${count.toString().padStart(4, "0")}`;
     const doc: InvoiceDoc = {
       ...src,
       id: p(),
-      number,
+      number: nextNumber("invoice"),
       kind: "invoice",
       status: "unpaid",
       paidAmount: 0,
+      payments: [],
+      sourceId: src.id,
+      convertedToId: undefined,
       date: new Date().toISOString(),
     };
-    state = { ...state, docs: [doc, ...state.docs] };
+    state = {
+      ...state,
+      docs: [doc, ...state.docs.map((d) => (d.id === src.id ? { ...d, status: "converted" as DocStatus, convertedToId: doc.id } : d))],
+    };
+    applyStock(doc);
     persist();
     return doc.id;
   },
-  markPaid(id: string, method: PaymentMethod = "cash") {
+  // Sales return / credit note from an invoice
+  createSalesReturn(invoiceId: string, lines: { lineId: string; qty: number }[], reason = "") {
+    const src = state.docs.find((d) => d.id === invoiceId);
+    if (!src) return;
+    const items = src.items
+      .map((li) => {
+        const sel = lines.find((l) => l.lineId === li.id);
+        if (!sel || sel.qty <= 0) return null;
+        return { ...li, id: p(), qty: Math.min(sel.qty, li.qty) };
+      })
+      .filter(Boolean) as LineItem[];
+    if (!items.length) return;
+    const doc: InvoiceDoc = {
+      id: p(),
+      kind: "credit_note",
+      number: nextNumber("credit_note"),
+      partyId: src.partyId,
+      partyName: src.partyName,
+      date: new Date().toISOString(),
+      items,
+      notes: reason,
+      status: "draft",
+      paidAmount: 0,
+      payments: [],
+      sourceId: src.id,
+    };
+    state = { ...state, docs: [doc, ...state.docs] };
+    applyStock(doc);
+    persist();
+    return doc.id;
+  },
+  addPayment(id: string, amount: number, method: PaymentMethod = "cash", note?: string) {
+    const doc = state.docs.find((d) => d.id === id);
+    if (!doc) return;
+    const total = docTotal(doc);
+    const paid = Math.min(total, doc.paidAmount + amount);
+    const payment: Payment = { id: p(), amount, method, date: new Date().toISOString(), note };
     state = {
       ...state,
       docs: state.docs.map((d) =>
         d.id === id
-          ? { ...d, status: "paid" as DocStatus, paidAmount: docTotal(d), paymentMethod: method }
+          ? {
+              ...d,
+              paidAmount: paid,
+              paymentMethod: method,
+              payments: [...(d.payments ?? []), payment],
+              status: (paid >= total - 0.5 ? "paid" : paid > 0 ? "partial" : "unpaid") as DocStatus,
+            }
           : d,
       ),
     };
+    if (method === "cash") {
+      state = {
+        ...state,
+        cashEntries: [{ id: p(), type: "in", amount, date: payment.date, note: `Payment-In ${doc.number}` }, ...state.cashEntries],
+      };
+    }
     persist();
+  },
+  markPaid(id: string, method: PaymentMethod = "cash") {
+    const doc = state.docs.find((d) => d.id === id);
+    if (!doc) return;
+    this.addPayment(id, Math.max(0, docTotal(doc) - doc.paidAmount), method, "Full settlement");
   },
   deleteDoc(id: string) {
+    const doc = state.docs.find((d) => d.id === id);
     state = { ...state, docs: state.docs.filter((d) => d.id !== id) };
+    if (doc) revertStock(doc);
     persist();
   },
+  // Other income
+  addOtherIncome(input: Omit<OtherIncome, "id">) {
+    state = { ...state, otherIncome: [{ ...input, id: p() }, ...state.otherIncome] };
+    persist();
+  },
+  deleteOtherIncome(id: string) {
+    state = { ...state, otherIncome: state.otherIncome.filter((x) => x.id !== id) };
+    persist();
+  },
+  updateBusiness(patch: Partial<Business>) {
+    state = { ...state, business: { ...state.business, ...patch } };
+    persist();
+  },
+  exportBackup(): string {
+    return JSON.stringify(state, null, 2);
+  },
+  importBackup(json: string) {
+    const parsed = JSON.parse(json);
+    state = migrate(parsed);
+    persist();
+  },
+
   addExpense(input: Omit<Expense, "id">) {
     state = { ...state, expenses: [{ ...input, id: p() }, ...state.expenses] };
     persist();
