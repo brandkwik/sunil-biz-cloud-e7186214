@@ -164,7 +164,11 @@ export type Purchase = {
   amount: number;
   date: string;
   status: "paid" | "unpaid";
+  kind?: "bill" | "debit_note";
+  items?: LineItem[];
+  sourceId?: string;
 };
+
 
 export type Company = {
   id: string;
