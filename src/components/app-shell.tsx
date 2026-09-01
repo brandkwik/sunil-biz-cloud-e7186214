@@ -47,6 +47,7 @@ const MENU: MenuGroup[] = [
   {
     title: "Utilities",
     items: [
+      { to: "/pricing", label: "Plans & Pricing", icon: Crown },
       { to: "/more/utilities/companies", label: "Companies", icon: Building2 },
       { to: "/more/utilities/updates", label: "Check for Updates", icon: RefreshCw },
     ],
