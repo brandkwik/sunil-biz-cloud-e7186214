@@ -802,18 +802,36 @@ export const actions = {
   },
 };
 
+export function lineAmount(i: LineItem) {
+  return i.qty * i.rate * (1 - (i.discountPct ?? 0) / 100);
+}
 export function docSubtotal(d: InvoiceDoc) {
-  return d.items.reduce((s, i) => s + i.qty * i.rate, 0);
+  return d.items.reduce((s, i) => s + lineAmount(i), 0);
 }
 export function docTax(d: InvoiceDoc) {
-  return d.items.reduce((s, i) => s + (i.qty * i.rate * i.taxPct) / 100, 0);
+  return d.items.reduce((s, i) => s + (lineAmount(i) * i.taxPct) / 100, 0);
 }
 export function docTotal(d: InvoiceDoc) {
-  return docSubtotal(d) + docTax(d);
+  return docSubtotal(d) + docTax(d) + (d.shipping ?? 0);
+}
+export function docDue(d: InvoiceDoc) {
+  return Math.max(0, docTotal(d) - d.paidAmount);
+}
+/** Bill-wise gross profit: sale value minus item cost. */
+export function docProfit(d: InvoiceDoc) {
+  const cost = d.items.reduce((s, i) => s + (i.cost ?? 0) * i.qty, 0);
+  return docSubtotal(d) - cost;
+}
+export function stockValue(s: State) {
+  return s.items.reduce((sum, i) => sum + i.stock * i.purchasePrice, 0);
+}
+export function lowStockItems(s: State) {
+  return s.items.filter((i) => i.type === "product" && i.minStock > 0 && i.stock <= i.minStock);
 }
 export function formatINR(n: number) {
   return "₹" + Math.round(n).toLocaleString("en-IN");
 }
+
 
 export function bankBalance(s: State, bankId: string): number {
   const acct = s.bankAccounts.find((b) => b.id === bankId);
