@@ -2,7 +2,7 @@ import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, FileText, Users, Wallet, BarChart3, Plus, Bell, LogOut, Menu,
   Landmark, Coins, ScrollText, HandCoins, Building2, RefreshCw, ShoppingCart,
-  ShoppingBag, Star, Settings, Receipt, Printer, Percent, Package, Globe, ChevronRight,
+  ShoppingBag, Star, Settings, Receipt, Printer, Percent, Package, Globe, ChevronRight, Crown,
 } from "lucide-react";
 import { useStore, actions } from "@/lib/store";
 import { Button } from "@/components/ui/button";
