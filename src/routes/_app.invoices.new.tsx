@@ -128,7 +128,20 @@ function NewInvoice() {
                     </button>
                   )}
                 </div>
+                {master.length > 0 && (
+                  <Select value={i.itemId ?? ""} onValueChange={(v) => pickMaster(i.id, v)}>
+                    <SelectTrigger className="mb-2"><SelectValue placeholder="Pick from item master (optional)" /></SelectTrigger>
+                    <SelectContent>
+                      {master.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name} · {formatINR(m.salePrice)}{m.type === "product" ? ` · ${m.stock} ${m.unit}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <Input placeholder="Item name" value={i.name} onChange={(e) => update(i.id, { name: e.target.value })} />
+
                 <div className="mt-2 grid grid-cols-3 gap-2">
                   <div>
                     <Label className="text-[11px]">Qty</Label>
