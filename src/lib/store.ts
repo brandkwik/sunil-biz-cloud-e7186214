@@ -122,6 +122,20 @@ export type BankTxn = {
   note?: string;
 };
 
+export type PlanId = "free" | "silver" | "gold" | "diamond";
+export type BillingCycle = "1y" | "2y" | "3y";
+export type PlanDevice = "mobile" | "desktop";
+
+export type Subscription = {
+  plan: PlanId;
+  cycle: BillingCycle;
+  device: PlanDevice;
+  startedAt: string;
+  expiresAt: string;
+  autoRenew: boolean;
+  history: { id: string; plan: PlanId; cycle: BillingCycle; device: PlanDevice; amount: number; date: string }[];
+};
+
 type State = {
   user: User | null;
   parties: Party[];
@@ -135,6 +149,7 @@ type State = {
   purchases: Purchase[];
   companies: Company[];
   settings: Settings;
+  subscription: Subscription;
 };
 
 function p() {
@@ -209,6 +224,15 @@ function initial(): State {
         "app.beta": false,
       },
     },
+    subscription: {
+      plan: "free",
+      cycle: "1y",
+      device: "mobile",
+      startedAt: iso(today),
+      expiresAt: iso(new Date(today.getTime() + 14 * 864e5)),
+      autoRenew: false,
+      history: [],
+    },
   };
 }
 
@@ -229,6 +253,7 @@ function migrate(raw: any): State {
     loans: raw?.loans ?? base.loans,
     purchases: raw?.purchases ?? base.purchases,
     companies: raw?.companies ?? base.companies,
+    subscription: { ...base.subscription, ...(raw?.subscription ?? {}) },
   };
 }
 
@@ -441,6 +466,43 @@ export const actions = {
   },
   setCurrency(code: string) {
     state = { ...state, settings: { ...state.settings, currency: code } };
+    persist();
+  },
+  // Subscription
+  subscribePlan(input: { plan: PlanId; cycle: BillingCycle; device: PlanDevice; amount: number }) {
+    const years = input.cycle === "1y" ? 1 : input.cycle === "2y" ? 2 : 3;
+    const now = new Date();
+    const current = state.subscription;
+    const base =
+      current.plan !== "free" && new Date(current.expiresAt) > now ? new Date(current.expiresAt) : now;
+    const expires = new Date(base.getTime());
+    expires.setFullYear(expires.getFullYear() + years);
+    state = {
+      ...state,
+      subscription: {
+        ...current,
+        plan: input.plan,
+        cycle: input.cycle,
+        device: input.device,
+        startedAt: now.toISOString(),
+        expiresAt: expires.toISOString(),
+        history: [
+          { id: p(), plan: input.plan, cycle: input.cycle, device: input.device, amount: input.amount, date: now.toISOString() },
+          ...current.history,
+        ],
+      },
+    };
+    persist();
+  },
+  setAutoRenew(on: boolean) {
+    state = { ...state, subscription: { ...state.subscription, autoRenew: on } };
+    persist();
+  },
+  cancelPlan() {
+    state = {
+      ...state,
+      subscription: { ...state.subscription, plan: "free", autoRenew: false, expiresAt: new Date().toISOString() },
+    };
     persist();
   },
   reset() {
