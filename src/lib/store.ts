@@ -122,6 +122,20 @@ export type BankTxn = {
   note?: string;
 };
 
+export type PlanId = "free" | "silver" | "gold" | "diamond";
+export type BillingCycle = "1y" | "2y" | "3y";
+export type PlanDevice = "mobile" | "desktop";
+
+export type Subscription = {
+  plan: PlanId;
+  cycle: BillingCycle;
+  device: PlanDevice;
+  startedAt: string;
+  expiresAt: string;
+  autoRenew: boolean;
+  history: { id: string; plan: PlanId; cycle: BillingCycle; device: PlanDevice; amount: number; date: string }[];
+};
+
 type State = {
   user: User | null;
   parties: Party[];
@@ -135,6 +149,7 @@ type State = {
   purchases: Purchase[];
   companies: Company[];
   settings: Settings;
+  subscription: Subscription;
 };
 
 function p() {
