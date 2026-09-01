@@ -241,28 +241,48 @@ function initial(): State {
   const [a, b] = parties;
   const today = new Date();
   const iso = (d: Date) => d.toISOString();
+  const items: Item[] = [
+    { id: p(), name: "Premium Perfume 100ml", type: "product", unit: "Pcs", category: "Perfume", hsn: "3303", barcode: "8901234567890", purchasePrice: 950, salePrice: 1450, mrp: 1699, taxPct: 18, stock: 24, minStock: 10 },
+    { id: p(), name: "Gift Box", type: "product", unit: "Pcs", category: "Packaging", hsn: "4819", purchasePrice: 140, salePrice: 250, mrp: 299, taxPct: 18, stock: 6, minStock: 12 },
+    { id: p(), name: "Consulting hours", type: "service", unit: "Hr", category: "Services", hsn: "9983", purchasePrice: 0, salePrice: 1500, taxPct: 18, stock: 0, minStock: 0 },
+  ];
   const docs: InvoiceDoc[] = [
     {
       id: p(), kind: "invoice", number: "INV-0001", partyId: a.id, partyName: a.name,
       date: iso(today), dueDate: iso(new Date(today.getTime() + 7 * 864e5)),
-      items: [{ id: p(), name: "Consulting hours", qty: 10, rate: 1500, taxPct: 18 }],
-      status: "unpaid", paidAmount: 0,
+      items: [{ id: p(), itemId: items[2].id, name: "Consulting hours", qty: 10, rate: 1500, taxPct: 18, unit: "Hr", cost: 0 }],
+      status: "unpaid", paidAmount: 0, payments: [],
     },
     {
       id: p(), kind: "invoice", number: "INV-0002", partyId: b.id, partyName: b.name,
       date: iso(new Date(today.getTime() - 3 * 864e5)),
-      items: [{ id: p(), name: "Product A", qty: 4, rate: 899, taxPct: 12 }],
-      status: "paid", paidAmount: 4028,
+      items: [{ id: p(), itemId: items[0].id, name: "Premium Perfume 100ml", qty: 2, rate: 1450, taxPct: 18, unit: "Pcs", cost: 950 }],
+      status: "paid", paidAmount: 3422, payments: [],
     },
   ];
   return {
     user: null,
+    business: {
+      name: "SunilDemo Traders",
+      address: "12, MG Road, New Delhi 110001",
+      phone: "+91 98100 00000",
+      email: "billing@sunildemo.app",
+      gstin: "07ABCDE1234F1Z5",
+      state: "Delhi",
+      terms: "Goods once sold will not be taken back. Payment due within 7 days.",
+      upiId: "sunildemo@upi",
+      bankLine: "HDFC Bank · A/C 0012345678 · IFSC HDFC0000123",
+    },
     parties,
+    items,
+    stockMoves: [],
     docs,
     expenses: [
       { id: p(), category: "Rent", amount: 15000, date: iso(today), note: "Office rent" },
       { id: p(), category: "Utilities", amount: 2400, date: iso(today), note: "Electricity" },
     ],
+    otherIncome: [],
+
     bankAccounts: [],
     bankTxns: [],
     cashEntries: [],
