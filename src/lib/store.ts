@@ -209,9 +209,13 @@ export type Subscription = {
 
 type State = {
   user: User | null;
+  business: Business;
   parties: Party[];
+  items: Item[];
+  stockMoves: StockMove[];
   docs: InvoiceDoc[];
   expenses: Expense[];
+  otherIncome: OtherIncome[];
   bankAccounts: BankAccount[];
   bankTxns: BankTxn[];
   cashEntries: CashEntry[];
@@ -222,6 +226,7 @@ type State = {
   settings: Settings;
   subscription: Subscription;
 };
+
 
 function p() {
   return Math.random().toString(36).slice(2, 10);
