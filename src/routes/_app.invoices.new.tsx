@@ -10,9 +10,11 @@ import { Trash2, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+const KINDS: DocKind[] = ["invoice", "proforma", "quotation", "estimate", "credit_note"];
+
 export const Route = createFileRoute("/_app/invoices/new")({
   validateSearch: (s: Record<string, unknown>) => ({
-    kind: (s.kind === "proforma" || s.kind === "quotation" ? s.kind : "invoice") as DocKind as DocKind,
+    kind: (KINDS.includes(s.kind as DocKind) ? s.kind : "invoice") as DocKind,
   }),
   component: NewInvoice,
 });
@@ -21,6 +23,8 @@ const KIND_LABEL: Record<DocKind, string> = {
   invoice: "Invoice",
   proforma: "Proforma",
   quotation: "Quotation",
+  estimate: "Estimate",
+  credit_note: "Credit Note",
 };
 
 function nid() { return Math.random().toString(36).slice(2, 10); }
@@ -28,6 +32,7 @@ function nid() { return Math.random().toString(36).slice(2, 10); }
 function NewInvoice() {
   const { kind } = Route.useSearch() as { kind: DocKind };
   const parties = useStore((s) => s.parties);
+  const master = useStore((s) => s.items);
   const router = useRouter();
 
   const [partyId, setPartyId] = useState(parties[0]?.id ?? "");
@@ -44,6 +49,23 @@ function NewInvoice() {
 
   const update = (id: string, patch: Partial<LineItem>) =>
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+
+  const pickMaster = (lineId: string, itemId: string) => {
+    const m = master.find((x) => x.id === itemId);
+    if (!m) return;
+    update(lineId, {
+      itemId: m.id,
+      name: m.name,
+      rate: m.salePrice,
+      taxPct: m.taxPct,
+      unit: m.unit,
+      category: m.category,
+      barcode: m.barcode,
+      hsn: m.hsn,
+      mrp: m.mrp,
+      cost: m.purchasePrice,
+    });
+  };
 
   const save = () => {
     if (!partyId) return toast.error("Select a party");
@@ -62,6 +84,7 @@ function NewInvoice() {
     toast.success(`${KIND_LABEL[kind]} created`);
     router.navigate({ to: "/invoices" });
   };
+
 
   return (
     <AppShell title={`New ${KIND_LABEL[kind]}`}>
@@ -105,7 +128,20 @@ function NewInvoice() {
                     </button>
                   )}
                 </div>
+                {master.length > 0 && (
+                  <Select value={i.itemId ?? ""} onValueChange={(v) => pickMaster(i.id, v)}>
+                    <SelectTrigger className="mb-2"><SelectValue placeholder="Pick from item master (optional)" /></SelectTrigger>
+                    <SelectContent>
+                      {master.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name} · {formatINR(m.salePrice)}{m.type === "product" ? ` · ${m.stock} ${m.unit}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <Input placeholder="Item name" value={i.name} onChange={(e) => update(i.id, { name: e.target.value })} />
+
                 <div className="mt-2 grid grid-cols-3 gap-2">
                   <div>
                     <Label className="text-[11px]">Qty</Label>
@@ -137,8 +173,17 @@ function NewInvoice() {
                     <Label className="text-[11px]">HSN / SAC</Label>
                     <Input placeholder="e.g. 998314" value={i.hsn ?? ""} onChange={(e) => update(i.id, { hsn: e.target.value })} />
                   </div>
+                  <div>
+                    <Label className="text-[11px]">Discount %</Label>
+                    <Input type="number" value={i.discountPct ?? 0} onChange={(e) => update(i.id, { discountPct: +e.target.value || 0 })} />
+                  </div>
+                  <div>
+                    <Label className="text-[11px]">Cost / unit</Label>
+                    <Input type="number" value={i.cost ?? 0} onChange={(e) => update(i.id, { cost: +e.target.value || 0 })} />
+                  </div>
                 </div>
-                <p className="mt-2 text-right text-sm font-semibold">{formatINR(i.qty * i.rate * (1 + i.taxPct / 100))}</p>
+                <p className="mt-2 text-right text-sm font-semibold">{formatINR(lineAmount(i) * (1 + i.taxPct / 100))}</p>
+
               </div>
             ))}
 

@@ -15,20 +15,61 @@ export type Party = {
 
 export type LineItem = {
   id: string;
+  itemId?: string;
   name: string;
   qty: number;
   rate: number;
   taxPct: number;
+  discountPct?: number;
   unit?: string;
   category?: string;
   barcode?: string;
   hsn?: string;
+  mrp?: number;
+  cost?: number;
+};
+
+export type Item = {
+  id: string;
+  name: string;
+  type: "product" | "service";
+  sku?: string;
+  barcode?: string;
+  hsn?: string;
+  unit: string;
+  category?: string;
+  purchasePrice: number;
+  salePrice: number;
+  mrp?: number;
+  taxPct: number;
+  stock: number;
+  minStock: number;
+  batch?: string;
+  expiry?: string;
+};
+
+export type StockMove = {
+  id: string;
+  itemId: string;
+  itemName: string;
+  qty: number; // +in / -out
+  reason: string;
+  ref?: string;
+  date: string;
 };
 
 export type PaymentMethod = "cash" | "bank" | "upi" | "cheque" | "card" | "online";
 
-export type DocKind = "invoice" | "proforma" | "quotation";
-export type DocStatus = "paid" | "unpaid" | "partial" | "draft";
+export type Payment = {
+  id: string;
+  amount: number;
+  method: PaymentMethod;
+  date: string;
+  note?: string;
+};
+
+export type DocKind = "invoice" | "proforma" | "quotation" | "estimate" | "credit_note";
+export type DocStatus = "paid" | "unpaid" | "partial" | "draft" | "sent" | "accepted" | "converted";
 
 export type InvoiceDoc = {
   id: string;
@@ -43,7 +84,33 @@ export type InvoiceDoc = {
   status: DocStatus;
   paidAmount: number;
   paymentMethod?: PaymentMethod;
+  payments?: Payment[];
+  sourceId?: string;
+  convertedToId?: string;
+  shipping?: number;
+  roundOff?: number;
 };
+
+export type OtherIncome = {
+  id: string;
+  source: string;
+  amount: number;
+  date: string;
+  note?: string;
+};
+
+export type Business = {
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  gstin?: string;
+  state?: string;
+  terms?: string;
+  upiId?: string;
+  bankLine?: string;
+};
+
 
 export type Expense = {
   id: string;
@@ -97,7 +164,11 @@ export type Purchase = {
   amount: number;
   date: string;
   status: "paid" | "unpaid";
+  kind?: "bill" | "debit_note";
+  items?: LineItem[];
+  sourceId?: string;
 };
+
 
 export type Company = {
   id: string;
@@ -138,9 +209,13 @@ export type Subscription = {
 
 type State = {
   user: User | null;
+  business: Business;
   parties: Party[];
+  items: Item[];
+  stockMoves: StockMove[];
   docs: InvoiceDoc[];
   expenses: Expense[];
+  otherIncome: OtherIncome[];
   bankAccounts: BankAccount[];
   bankTxns: BankTxn[];
   cashEntries: CashEntry[];
@@ -151,6 +226,7 @@ type State = {
   settings: Settings;
   subscription: Subscription;
 };
+
 
 function p() {
   return Math.random().toString(36).slice(2, 10);
@@ -165,28 +241,48 @@ function initial(): State {
   const [a, b] = parties;
   const today = new Date();
   const iso = (d: Date) => d.toISOString();
+  const items: Item[] = [
+    { id: p(), name: "Premium Perfume 100ml", type: "product", unit: "Pcs", category: "Perfume", hsn: "3303", barcode: "8901234567890", purchasePrice: 950, salePrice: 1450, mrp: 1699, taxPct: 18, stock: 24, minStock: 10 },
+    { id: p(), name: "Gift Box", type: "product", unit: "Pcs", category: "Packaging", hsn: "4819", purchasePrice: 140, salePrice: 250, mrp: 299, taxPct: 18, stock: 6, minStock: 12 },
+    { id: p(), name: "Consulting hours", type: "service", unit: "Hr", category: "Services", hsn: "9983", purchasePrice: 0, salePrice: 1500, taxPct: 18, stock: 0, minStock: 0 },
+  ];
   const docs: InvoiceDoc[] = [
     {
       id: p(), kind: "invoice", number: "INV-0001", partyId: a.id, partyName: a.name,
       date: iso(today), dueDate: iso(new Date(today.getTime() + 7 * 864e5)),
-      items: [{ id: p(), name: "Consulting hours", qty: 10, rate: 1500, taxPct: 18 }],
-      status: "unpaid", paidAmount: 0,
+      items: [{ id: p(), itemId: items[2].id, name: "Consulting hours", qty: 10, rate: 1500, taxPct: 18, unit: "Hr", cost: 0 }],
+      status: "unpaid", paidAmount: 0, payments: [],
     },
     {
       id: p(), kind: "invoice", number: "INV-0002", partyId: b.id, partyName: b.name,
       date: iso(new Date(today.getTime() - 3 * 864e5)),
-      items: [{ id: p(), name: "Product A", qty: 4, rate: 899, taxPct: 12 }],
-      status: "paid", paidAmount: 4028,
+      items: [{ id: p(), itemId: items[0].id, name: "Premium Perfume 100ml", qty: 2, rate: 1450, taxPct: 18, unit: "Pcs", cost: 950 }],
+      status: "paid", paidAmount: 3422, payments: [],
     },
   ];
   return {
     user: null,
+    business: {
+      name: "SunilDemo Traders",
+      address: "12, MG Road, New Delhi 110001",
+      phone: "+91 98100 00000",
+      email: "billing@sunildemo.app",
+      gstin: "07ABCDE1234F1Z5",
+      state: "Delhi",
+      terms: "Goods once sold will not be taken back. Payment due within 7 days.",
+      upiId: "sunildemo@upi",
+      bankLine: "HDFC Bank · A/C 0012345678 · IFSC HDFC0000123",
+    },
     parties,
+    items,
+    stockMoves: [],
     docs,
     expenses: [
       { id: p(), category: "Rent", amount: 15000, date: iso(today), note: "Office rent" },
       { id: p(), category: "Utilities", amount: 2400, date: iso(today), note: "Electricity" },
     ],
+    otherIncome: [],
+
     bankAccounts: [],
     bankTxns: [],
     cashEntries: [],
@@ -246,6 +342,10 @@ function migrate(raw: any): State {
       ...(raw?.settings ?? {}),
       toggles: { ...base.settings.toggles, ...(raw?.settings?.toggles ?? {}) },
     },
+    business: { ...base.business, ...(raw?.business ?? {}) },
+    items: raw?.items ?? base.items,
+    stockMoves: raw?.stockMoves ?? base.stockMoves,
+    otherIncome: raw?.otherIncome ?? base.otherIncome,
     bankAccounts: raw?.bankAccounts ?? base.bankAccounts,
     bankTxns: raw?.bankTxns ?? base.bankTxns,
     cashEntries: raw?.cashEntries ?? base.cashEntries,
@@ -254,6 +354,7 @@ function migrate(raw: any): State {
     purchases: raw?.purchases ?? base.purchases,
     companies: raw?.companies ?? base.companies,
     subscription: { ...base.subscription, ...(raw?.subscription ?? {}) },
+
   };
 }
 
@@ -294,7 +395,47 @@ export function getState() {
   return state;
 }
 
+const PREFIX: Record<DocKind, string> = {
+  invoice: "INV",
+  proforma: "PRO",
+  quotation: "QTN",
+  estimate: "EST",
+  credit_note: "CRN",
+};
+
+function nextNumber(kind: DocKind) {
+  const count = state.docs.filter((d) => d.kind === kind).length + 1;
+  return `${PREFIX[kind]}-${count.toString().padStart(4, "0")}`;
+}
+
+// Stock ledger: invoices reduce stock, credit notes add it back.
+function stockSign(kind: DocKind) {
+  if (kind === "invoice") return -1;
+  if (kind === "credit_note") return 1;
+  return 0;
+}
+
+function moveStock(lines: LineItem[], sign: number, reason: string, ref?: string) {
+  if (!sign) return;
+  const moves: StockMove[] = [];
+  const items = state.items.map((it) => {
+    const qty = lines.filter((l) => l.itemId === it.id).reduce((s, l) => s + l.qty, 0);
+    if (!qty) return it;
+    moves.push({ id: p(), itemId: it.id, itemName: it.name, qty: qty * sign, reason, ref, date: new Date().toISOString() });
+    return it.type === "service" ? it : { ...it, stock: it.stock + qty * sign };
+  });
+  state = { ...state, items, stockMoves: [...moves, ...state.stockMoves] };
+}
+
+function applyStock(doc: InvoiceDoc) {
+  moveStock(doc.items, stockSign(doc.kind), doc.kind === "credit_note" ? "Sales return" : "Sale", doc.number);
+}
+function revertStock(doc: InvoiceDoc) {
+  moveStock(doc.items, -stockSign(doc.kind), "Document deleted", doc.number);
+}
+
 export const actions = {
+
   login(email: string, name = "Sunil", business = "SunilDemo Traders") {
     state = { ...state, user: { name, business, email } };
     persist();
@@ -311,47 +452,175 @@ export const actions = {
     state = { ...state, parties: state.parties.filter((x) => x.id !== id) };
     persist();
   },
+  updateParty(id: string, patch: Partial<Party>) {
+    state = { ...state, parties: state.parties.map((x) => (x.id === id ? { ...x, ...patch } : x)) };
+    persist();
+  },
+  // ---- Item master + stock ledger
+  addItem(input: Omit<Item, "id">) {
+    state = { ...state, items: [...state.items, { ...input, id: p() }] };
+    persist();
+  },
+  updateItem(id: string, patch: Partial<Item>) {
+    state = { ...state, items: state.items.map((x) => (x.id === id ? { ...x, ...patch } : x)) };
+    persist();
+  },
+  deleteItem(id: string) {
+    state = { ...state, items: state.items.filter((x) => x.id !== id) };
+    persist();
+  },
+  adjustStock(itemId: string, qty: number, reason = "Manual adjustment", ref?: string) {
+    const it = state.items.find((x) => x.id === itemId);
+    if (!it) return;
+    state = {
+      ...state,
+      items: state.items.map((x) => (x.id === itemId ? { ...x, stock: x.stock + qty } : x)),
+      stockMoves: [
+        { id: p(), itemId, itemName: it.name, qty, reason, ref, date: new Date().toISOString() },
+        ...state.stockMoves,
+      ],
+    };
+    persist();
+  },
   addDoc(input: Omit<InvoiceDoc, "id" | "number"> & { number?: string }) {
-    const kindPrefix =
-      input.kind === "invoice" ? "INV" : input.kind === "quotation" ? "QTN" : "PRO";
-    const count = state.docs.filter((d) => d.kind === input.kind).length + 1;
-    const number = input.number ?? `${kindPrefix}-${count.toString().padStart(4, "0")}`;
-    state = { ...state, docs: [{ ...input, id: p(), number }, ...state.docs] };
+    const number = input.number ?? nextNumber(input.kind);
+    const doc: InvoiceDoc = { ...input, id: p(), number, payments: input.payments ?? [] };
+    state = { ...state, docs: [doc, ...state.docs] };
+    applyStock(doc);
+    if (input.sourceId) {
+      state = {
+        ...state,
+        docs: state.docs.map((d) =>
+          d.id === input.sourceId ? { ...d, status: "converted" as DocStatus, convertedToId: doc.id } : d,
+        ),
+      };
+    }
+    persist();
+    return doc.id;
+  },
+  updateDoc(id: string, patch: Partial<InvoiceDoc>) {
+    state = { ...state, docs: state.docs.map((d) => (d.id === id ? { ...d, ...patch } : d)) };
+    persist();
+  },
+  setDocStatus(id: string, status: DocStatus) {
+    state = { ...state, docs: state.docs.map((d) => (d.id === id ? { ...d, status } : d)) };
     persist();
   },
   convertToInvoice(id: string) {
     const src = state.docs.find((d) => d.id === id);
     if (!src) return;
-    const count = state.docs.filter((d) => d.kind === "invoice").length + 1;
-    const number = `INV-${count.toString().padStart(4, "0")}`;
     const doc: InvoiceDoc = {
       ...src,
       id: p(),
-      number,
+      number: nextNumber("invoice"),
       kind: "invoice",
       status: "unpaid",
       paidAmount: 0,
+      payments: [],
+      sourceId: src.id,
+      convertedToId: undefined,
       date: new Date().toISOString(),
     };
-    state = { ...state, docs: [doc, ...state.docs] };
+    state = {
+      ...state,
+      docs: [doc, ...state.docs.map((d) => (d.id === src.id ? { ...d, status: "converted" as DocStatus, convertedToId: doc.id } : d))],
+    };
+    applyStock(doc);
     persist();
     return doc.id;
   },
-  markPaid(id: string, method: PaymentMethod = "cash") {
+  // Sales return / credit note from an invoice
+  createSalesReturn(invoiceId: string, lines: { lineId: string; qty: number }[], reason = "") {
+    const src = state.docs.find((d) => d.id === invoiceId);
+    if (!src) return;
+    const items = src.items
+      .map((li) => {
+        const sel = lines.find((l) => l.lineId === li.id);
+        if (!sel || sel.qty <= 0) return null;
+        return { ...li, id: p(), qty: Math.min(sel.qty, li.qty) };
+      })
+      .filter(Boolean) as LineItem[];
+    if (!items.length) return;
+    const doc: InvoiceDoc = {
+      id: p(),
+      kind: "credit_note",
+      number: nextNumber("credit_note"),
+      partyId: src.partyId,
+      partyName: src.partyName,
+      date: new Date().toISOString(),
+      items,
+      notes: reason,
+      status: "draft",
+      paidAmount: 0,
+      payments: [],
+      sourceId: src.id,
+    };
+    state = { ...state, docs: [doc, ...state.docs] };
+    applyStock(doc);
+    persist();
+    return doc.id;
+  },
+  addPayment(id: string, amount: number, method: PaymentMethod = "cash", note?: string) {
+    const doc = state.docs.find((d) => d.id === id);
+    if (!doc) return;
+    const total = docTotal(doc);
+    const paid = Math.min(total, doc.paidAmount + amount);
+    const payment: Payment = { id: p(), amount, method, date: new Date().toISOString(), note };
     state = {
       ...state,
       docs: state.docs.map((d) =>
         d.id === id
-          ? { ...d, status: "paid" as DocStatus, paidAmount: docTotal(d), paymentMethod: method }
+          ? {
+              ...d,
+              paidAmount: paid,
+              paymentMethod: method,
+              payments: [...(d.payments ?? []), payment],
+              status: (paid >= total - 0.5 ? "paid" : paid > 0 ? "partial" : "unpaid") as DocStatus,
+            }
           : d,
       ),
     };
+    if (method === "cash") {
+      state = {
+        ...state,
+        cashEntries: [{ id: p(), type: "in", amount, date: payment.date, note: `Payment-In ${doc.number}` }, ...state.cashEntries],
+      };
+    }
     persist();
+  },
+  markPaid(id: string, method: PaymentMethod = "cash") {
+    const doc = state.docs.find((d) => d.id === id);
+    if (!doc) return;
+    this.addPayment(id, Math.max(0, docTotal(doc) - doc.paidAmount), method, "Full settlement");
   },
   deleteDoc(id: string) {
+    const doc = state.docs.find((d) => d.id === id);
     state = { ...state, docs: state.docs.filter((d) => d.id !== id) };
+    if (doc) revertStock(doc);
     persist();
   },
+  // Other income
+  addOtherIncome(input: Omit<OtherIncome, "id">) {
+    state = { ...state, otherIncome: [{ ...input, id: p() }, ...state.otherIncome] };
+    persist();
+  },
+  deleteOtherIncome(id: string) {
+    state = { ...state, otherIncome: state.otherIncome.filter((x) => x.id !== id) };
+    persist();
+  },
+  updateBusiness(patch: Partial<Business>) {
+    state = { ...state, business: { ...state.business, ...patch } };
+    persist();
+  },
+  exportBackup(): string {
+    return JSON.stringify(state, null, 2);
+  },
+  importBackup(json: string) {
+    const parsed = JSON.parse(json);
+    state = migrate(parsed);
+    persist();
+  },
+
   addExpense(input: Omit<Expense, "id">) {
     state = { ...state, expenses: [{ ...input, id: p() }, ...state.expenses] };
     persist();
@@ -419,10 +688,29 @@ export const actions = {
   },
   // Purchases
   addPurchase(input: Omit<Purchase, "id" | "number">) {
-    const count = state.purchases.length + 1;
-    const number = `PUR-${count.toString().padStart(4, "0")}`;
-    state = { ...state, purchases: [{ ...input, id: p(), number }, ...state.purchases] };
+    const kind = input.kind ?? "bill";
+    const same = state.purchases.filter((x) => (x.kind ?? "bill") === kind).length + 1;
+    const number = `${kind === "bill" ? "PUR" : "DBN"}-${same.toString().padStart(4, "0")}`;
+    const rec: Purchase = { ...input, kind, id: p(), number };
+    state = { ...state, purchases: [rec, ...state.purchases] };
+    if (rec.items?.length) {
+      moveStock(rec.items, kind === "bill" ? 1 : -1, kind === "bill" ? "Purchase" : "Purchase return", number);
+    }
     persist();
+    return rec.id;
+  },
+  createPurchaseReturn(purchaseId: string, amount: number, lines?: LineItem[]) {
+    const src = state.purchases.find((x) => x.id === purchaseId);
+    if (!src) return;
+    return this.addPurchase({
+      vendorName: src.vendorName,
+      amount,
+      date: new Date().toISOString(),
+      status: "unpaid",
+      kind: "debit_note",
+      items: lines ?? src.items,
+      sourceId: src.id,
+    });
   },
   togglePurchasePaid(id: string) {
     state = {
@@ -434,9 +722,12 @@ export const actions = {
     persist();
   },
   deletePurchase(id: string) {
+    const rec = state.purchases.find((x) => x.id === id);
     state = { ...state, purchases: state.purchases.filter((x) => x.id !== id) };
+    if (rec?.items?.length) moveStock(rec.items, (rec.kind ?? "bill") === "bill" ? -1 : 1, "Purchase deleted", rec.number);
     persist();
   },
+
   // Companies
   addCompany(input: Omit<Company, "id" | "active">) {
     state = { ...state, companies: [...state.companies, { ...input, id: p(), active: false }] };
@@ -511,18 +802,36 @@ export const actions = {
   },
 };
 
+export function lineAmount(i: LineItem) {
+  return i.qty * i.rate * (1 - (i.discountPct ?? 0) / 100);
+}
 export function docSubtotal(d: InvoiceDoc) {
-  return d.items.reduce((s, i) => s + i.qty * i.rate, 0);
+  return d.items.reduce((s, i) => s + lineAmount(i), 0);
 }
 export function docTax(d: InvoiceDoc) {
-  return d.items.reduce((s, i) => s + (i.qty * i.rate * i.taxPct) / 100, 0);
+  return d.items.reduce((s, i) => s + (lineAmount(i) * i.taxPct) / 100, 0);
 }
 export function docTotal(d: InvoiceDoc) {
-  return docSubtotal(d) + docTax(d);
+  return docSubtotal(d) + docTax(d) + (d.shipping ?? 0);
+}
+export function docDue(d: InvoiceDoc) {
+  return Math.max(0, docTotal(d) - d.paidAmount);
+}
+/** Bill-wise gross profit: sale value minus item cost. */
+export function docProfit(d: InvoiceDoc) {
+  const cost = d.items.reduce((s, i) => s + (i.cost ?? 0) * i.qty, 0);
+  return docSubtotal(d) - cost;
+}
+export function stockValue(s: State) {
+  return s.items.reduce((sum, i) => sum + i.stock * i.purchasePrice, 0);
+}
+export function lowStockItems(s: State) {
+  return s.items.filter((i) => i.type === "product" && i.minStock > 0 && i.stock <= i.minStock);
 }
 export function formatINR(n: number) {
   return "₹" + Math.round(n).toLocaleString("en-IN");
 }
+
 
 export function bankBalance(s: State, bankId: string): number {
   const acct = s.bankAccounts.find((b) => b.id === bankId);
