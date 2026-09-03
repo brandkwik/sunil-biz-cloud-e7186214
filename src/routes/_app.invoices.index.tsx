@@ -10,10 +10,13 @@ export const Route = createFileRoute("/_app/invoices/")({
   component: InvoicesPage,
 });
 
+const TAB_LABEL = { all: "All", invoice: "Sale", estimate: "Estimate", quotation: "Quotation", proforma: "Proforma", credit_note: "Credit Note" } as const;
+const KIND_SHORT: Record<string, string> = { invoice: "Invoice", proforma: "Proforma", quotation: "Quotation", estimate: "Estimate", credit_note: "Credit Note" };
+
 function InvoicesPage() {
   const docs = useStore((s) => s.docs);
   const router = useRouter();
-  const [tab, setTab] = useState<"all" | "invoice" | "proforma" | "quotation">("all");
+  const [tab, setTab] = useState<"all" | "invoice" | "proforma" | "quotation" | "estimate" | "credit_note">("all");
   const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {
@@ -43,14 +46,14 @@ function InvoicesPage() {
         </div>
       </div>
 
-      <div className="mb-3 grid grid-cols-4 rounded-lg bg-muted p-1 text-[11px] font-semibold">
-        {(["all", "invoice", "proforma", "quotation"] as const).map((k) => (
+      <div className="mb-3 flex gap-1 overflow-x-auto rounded-lg bg-muted p-1 text-[11px] font-semibold">
+        {(["all", "invoice", "estimate", "quotation", "proforma", "credit_note"] as const).map((k) => (
           <button
             key={k}
             onClick={() => setTab(k)}
-            className={`rounded-md py-2 capitalize transition ${tab === k ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+            className={`whitespace-nowrap rounded-md px-3 py-2 transition ${tab === k ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
           >
-            {k === "all" ? "All" : k === "invoice" ? "Sale" : k === "proforma" ? "Proforma" : "Quotation"}
+            {TAB_LABEL[k]}
           </button>
         ))}
       </div>
@@ -65,7 +68,7 @@ function InvoicesPage() {
         {filtered.length === 0 && (
           <div className="p-10 text-center">
             <p className="text-sm font-medium">No records</p>
-            <p className="mt-1 text-xs text-muted-foreground">Tap + to create your first {tab === "proforma" ? "proforma" : tab === "quotation" ? "quotation" : "invoice"}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Tap + to create your first {tab === "all" ? "invoice" : TAB_LABEL[tab].toLowerCase()}</p>
           </div>
         )}
         {filtered.map((d) => (
@@ -76,7 +79,7 @@ function InvoicesPage() {
                 <StatusBadge status={d.status} />
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {d.number} · {new Date(d.date).toLocaleDateString("en-IN")} · {d.kind === "proforma" ? "Proforma" : d.kind === "quotation" ? "Quotation" : "Invoice"}
+                {d.number} · {new Date(d.date).toLocaleDateString("en-IN")} · {KIND_SHORT[d.kind]}
               </p>
             </div>
             <div className="text-right">
@@ -92,7 +95,7 @@ function InvoicesPage() {
                   Mark paid
                 </button>
               )}
-              {d.kind === "quotation" && (
+              {(d.kind === "quotation" || d.kind === "estimate" || d.kind === "proforma") && d.status !== "converted" && (
                 <button
                   onClick={(e) => {
                     e.preventDefault();

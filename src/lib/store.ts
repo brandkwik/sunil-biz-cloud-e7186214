@@ -179,9 +179,35 @@ export type Company = {
 
 export type User = { name: string; business: string; email: string };
 
+export type PrintType = "regular" | "thermal";
+export type PrintSettings = {
+  type: PrintType;
+  pageSize: "A4" | "A5" | "Letter";
+  thermalWidth: "58mm" | "80mm";
+  theme: "classic" | "modern" | "minimal";
+  textSize: "small" | "medium" | "large";
+  accent: string;
+  copies: number;
+  showTaxBreakup: boolean;
+  showAmountInWords: boolean;
+};
+
+export const DEFAULT_PRINT: PrintSettings = {
+  type: "regular",
+  pageSize: "A4",
+  thermalWidth: "80mm",
+  theme: "modern",
+  textSize: "medium",
+  accent: "#d32f2f",
+  copies: 1,
+  showTaxBreakup: true,
+  showAmountInWords: true,
+};
+
 export type Settings = {
   toggles: Record<string, boolean>;
   currency: string;
+  print: PrintSettings;
 };
 
 export type BankTxn = {
@@ -292,6 +318,7 @@ function initial(): State {
     companies: [{ id: p(), name: "SunilDemo Traders", gstin: "07ABCDE1234F1Z5", active: true }],
     settings: {
       currency: "INR",
+      print: { ...DEFAULT_PRINT },
       toggles: {
         "gst.enabled": true,
         "invoice.autoNumber": true,
@@ -341,6 +368,7 @@ function migrate(raw: any): State {
       ...base.settings,
       ...(raw?.settings ?? {}),
       toggles: { ...base.settings.toggles, ...(raw?.settings?.toggles ?? {}) },
+      print: { ...DEFAULT_PRINT, ...(raw?.settings?.print ?? {}) },
     },
     business: { ...base.business, ...(raw?.business ?? {}) },
     items: raw?.items ?? base.items,
@@ -507,14 +535,18 @@ export const actions = {
     persist();
   },
   convertToInvoice(id: string) {
+    return this.convertDoc(id, "invoice");
+  },
+  // Estimate -> Quotation -> Proforma -> Invoice (any forward step allowed)
+  convertDoc(id: string, target: DocKind) {
     const src = state.docs.find((d) => d.id === id);
-    if (!src) return;
+    if (!src || src.kind === target || target === "credit_note") return;
     const doc: InvoiceDoc = {
       ...src,
       id: p(),
-      number: nextNumber("invoice"),
-      kind: "invoice",
-      status: "unpaid",
+      number: nextNumber(target),
+      kind: target,
+      status: target === "invoice" ? "unpaid" : "draft",
       paidAmount: 0,
       payments: [],
       sourceId: src.id,
@@ -758,6 +790,22 @@ export const actions = {
   setCurrency(code: string) {
     state = { ...state, settings: { ...state.settings, currency: code } };
     persist();
+  },
+  updatePrintSettings(patch: Partial<PrintSettings>) {
+    state = { ...state, settings: { ...state.settings, print: { ...state.settings.print, ...patch } } };
+    persist();
+  },
+  importParties(rows: Array<Omit<Party, "id" | "balance">>) {
+    const fresh = rows.filter((r) => r.name && !state.parties.some((x) => x.name.toLowerCase() === r.name.toLowerCase()));
+    state = { ...state, parties: [...state.parties, ...fresh.map((r) => ({ ...r, id: p(), balance: 0 }))] };
+    persist();
+    return fresh.length;
+  },
+  importItems(rows: Array<Omit<Item, "id">>) {
+    const fresh = rows.filter((r) => r.name && !state.items.some((x) => x.name.toLowerCase() === r.name.toLowerCase()));
+    state = { ...state, items: [...state.items, ...fresh.map((r) => ({ ...r, id: p() }))] };
+    persist();
+    return fresh.length;
   },
   // Subscription
   subscribePlan(input: { plan: PlanId; cycle: BillingCycle; device: PlanDevice; amount: number }) {
